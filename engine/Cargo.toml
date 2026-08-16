@@ -1,0 +1,18 @@
+[package]
+name = "peanut"
+version = "0.1.0"
+edition = "2024"
+
+# The binary was called `automatheus` until 2026-08-17.  A symlink
+# target/release/automatheus -> peanut is kept so older scripts still run.
+[[bin]]
+name = "peanut"
+path = "src/main.rs"
+
+[dependencies]
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"

@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Peanut</title>
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="/static/favicon.svg">
+<link rel="apple-touch-icon" href="/static/logo.svg">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span id="brandmark"></span>
+      <span>
+        <span class="wordmark">Peanut</span>
+        <span class="tagline">decides sentences about automatic sequences</span>
+      </span>
+    </a>
+
+    <div class="seqpick">
+      <label class="field" style="flex-direction:row;align-items:center;gap:6px">
+        <span>sequence</span>
+        <select id="seqSelect" aria-label="Sequence"></select>
+      </label>
+      <label class="field" style="flex-direction:row;align-items:center;gap:6px">
+        <span>digits</span>
+        <select id="modeSelect" aria-label="Digit order">
+          <option value="msd">msd</option>
+          <option value="lsd">lsd</option>
+        </select>
+      </label>
+      <span class="pill" id="healthPill">connecting…</span>
+    </div>
+  </header>
+
+  <!-- The tape: one strip of T, shared by every view.  Results paint onto it. -->
+  <section class="tape" aria-label="Sequence tape">
+    <div class="tape-head">
+      <span class="seqname" id="tapeName">—</span>
+      <span class="def" id="tapeDef"></span>
+      <span class="spacer"></span>
+      <span class="eyebrow" id="tapeHint">drag to pan · wheel or pinch to zoom · click a tile</span>
+    </div>
+    <div class="tape-canvas-wrap">
+      <canvas class="tape-canvas" id="tapeCanvas" aria-label="Symbols of the sequence"></canvas>
+    </div>
+    <div class="tape-legend" id="tapeLegend"></div>
+  </section>
+
+  <div class="body">
+    <nav class="rail" id="rail" aria-label="Views"></nav>
+
+    <main class="main">
+
+      <!-- ------------------------------------------------ sequence -->
+      <section class="view on" id="view-sequence">
+        <div class="view-head">
+          <h2>Sequence</h2><span class="cmd">seq N</span>
+          <p>The tape above is the sequence itself. Click a tile to read its base-k digits and
+             follow that word through the automaton that generates T.</p>
+        </div>
+        <div class="grid2">
+          <div class="panel" id="posCard">
+            <span class="eyebrow">position</span>
+            <p style="color:var(--ink-2);margin:6px 0 0">No tile selected yet. Click one on the tape.</p>
+          </div>
+          <div class="panel">
+            <span class="eyebrow">tape</span>
+            <div class="row" style="margin-top:8px">
+              <label class="field">length
+                <input type="number" id="seqLen" min="16" max="20000" step="16" value="512">
+              </label>
+              <button class="btn" id="seqReload">Reload</button>
+              <button class="btn ghost" id="tapeClear">Clear paint</button>
+            </div>
+            <p style="color:var(--ink-2)">Positions that satisfy a one-variable predicate are
+               painted on the tape from the playground; witnesses appear as brackets.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------ automaton -->
+      <section class="view" id="view-automaton">
+        <div class="view-head">
+          <h2>Automaton</h2><span class="cmd">export</span>
+          <p>The DFAO that generates T, and the automaton of the last predicate you built.
+             Nodes are states; an edge carries every digit tuple that takes one state to the other.</p>
+        </div>
+        <div class="row" style="margin-bottom:10px">
+          <label class="field" style="flex-direction:row;align-items:center;gap:6px">
+            <span>show</span>
+            <select id="autoPick"><option value="T">T — the sequence</option></select>
+          </label>
+          <button class="btn" id="autoReload">Load</button>
+          <button class="btn ghost" id="autoFit">Fit</button>
+          <button class="btn ghost" id="autoRelax">Relax layout</button>
+          <span class="spacer"></span>
+          <span class="pill" id="autoInfo">—</span>
+        </div>
+        <div class="canvas-frame">
+          <canvas class="stage" id="autoCanvas" aria-label="Automaton"></canvas>
+          <div class="tip" id="autoTip"></div>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------ playground -->
+      <section class="view" id="view-playground">
+        <div class="view-head">
+          <h2>Playground</h2><span class="cmd">? · let · witness · enum · finite · learnfe</span>
+          <p>One command per line. The sequence is defined for you; everything below runs in a
+             single engine session.</p>
+        </div>
+        <div class="grid2">
+          <div>
+            <div class="panel">
+              <textarea class="editor" id="editor" spellcheck="false" aria-label="Formula script">? ~ E i,n. n&gt;=1 &amp; (A t. t &lt; n =&gt; T[i+t] = T[i+n+t])</textarea>
+              <div class="row" style="margin-top:8px">
+                <button class="btn primary" id="runBtn">Run</button>
+                <button class="btn" id="runStreamBtn">Run with live progress</button>
+                <button class="btn ghost" id="clearBtn">Clear results</button>
+                <span class="spacer"></span>
+                <label class="field" style="flex-direction:row;align-items:center;gap:6px">
+                  <span>budget MB</span>
+                  <input type="number" id="memMb" min="128" max="8192" step="128" value="1536" style="width:82px">
+                </label>
+                <label class="field" style="flex-direction:row;align-items:center;gap:6px">
+                  <span>timeout s</span>
+                  <input type="number" id="timeoutS" min="5" max="1800" step="5" value="120" style="width:70px">
+                </label>
+              </div>
+            </div>
+            <div class="results" id="results"></div>
+          </div>
+          <div class="panel">
+            <span class="eyebrow">library</span>
+            <div class="libwrap" id="library"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------ heatmap -->
+      <section class="view" id="view-femap">
+        <div class="view-head">
+          <h2>Factor equality</h2><span class="cmd">fe_map</span>
+          <p>FE(i, j, L) is true when the length-L factors at i and at j agree. This grid is walked
+             directly through the DFAO — no automaton is built, so it is the ground truth the FE
+             automaton has to encode.</p>
+        </div>
+        <div class="row" style="margin-bottom:10px">
+          <label class="field">i from <input type="number" id="feI0" value="0" min="0" style="width:96px"></label>
+          <label class="field">j from <input type="number" id="feJ0" value="0" min="0" style="width:96px"></label>
+          <label class="field">size <input type="number" id="feSize" value="128" min="8" max="512" step="8" style="width:80px"></label>
+          <label class="field">length L <input type="number" id="feL" value="4" min="0" max="4096" style="width:80px"></label>
+          <button class="btn primary" id="feRun">Draw</button>
+          <span class="spacer"></span>
+          <span class="pill" id="feInfo">—</span>
+        </div>
+        <div class="canvas-frame">
+          <canvas class="heat" id="feCanvas" aria-label="FE heatmap"></canvas>
+          <div class="tip" id="feTip"></div>
+        </div>
+        <p class="eyebrow" style="margin-top:8px">drag to move the window · wheel to zoom · click a cell to compare the two factors</p>
+      </section>
+
+      <!-- ------------------------------------------------ morphism -->
+      <section class="view" id="view-morphism">
+        <div class="view-head">
+          <h2>Morphism sandbox</h2><span class="cmd">def T k m start …</span>
+          <p>Edit a k-uniform morphism and its coding. The tape regrows from the fixed point as you
+             type. Roll a random admissible one, then put it through the battery.</p>
+        </div>
+        <div class="grid2">
+          <div class="panel">
+            <div class="row">
+              <label class="field">base k <input type="number" id="mK" value="2" min="2" max="6" style="width:64px"></label>
+              <label class="field">letters m <input type="number" id="mM" value="2" min="1" max="9" style="width:64px"></label>
+              <button class="btn" id="mRoll">Roll random (PRISM)</button>
+              <button class="btn ghost" id="mFromCurrent">Copy current sequence</button>
+            </div>
+            <div class="rules" id="mRules" style="margin-top:10px"></div>
+            <div class="row" style="margin-top:10px">
+              <label class="field" style="flex:1">coding (one output letter per state)
+                <input type="text" id="mCoding" value="01">
+              </label>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <span class="def" id="mDef" style="font-family:var(--mono);font-size:11px;color:var(--ink-2);word-break:break-all"></span>
+            </div>
+            <div id="mStatus" style="margin-top:6px"></div>
+            <div class="row" style="margin-top:10px">
+              <button class="btn primary" id="mUse">Use this sequence</button>
+              <button class="btn" id="mBattery">Run the battery</button>
+            </div>
+          </div>
+          <div class="panel">
+            <span class="eyebrow">battery</span>
+            <div id="battOut" style="margin-top:8px;color:var(--ink-2)">
+              Squares, cubes, overlaps, palindromes, borders, recurrence, and |FE| — one engine
+              session, one table.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------ live -->
+      <section class="view" id="view-live">
+        <div class="view-head">
+          <h2>Live compute</h2><span class="cmd">AM_PROGRESS=1</span>
+          <p>What the engine is doing right now: which determinization it is on, how many subsets
+             it has built, and how close it is to the memory budget.</p>
+        </div>
+        <div class="panel">
+          <div class="row" style="align-items:flex-start">
+            <div class="mascot" id="mascot"></div>
+            <div style="flex:1;min-width:200px">
+              <div class="row">
+                <span class="eyebrow" id="liveState">idle</span>
+                <span class="spacer"></span>
+                <button class="btn" id="cancelBtn" disabled>Stop the job</button>
+              </div>
+              <div class="phasebar" id="phasebar"></div>
+              <div class="phaselabels" id="phaselabels"></div>
+            </div>
+          </div>
+          <div class="counters" id="counters"></div>
+          <div style="margin-top:10px">
+            <div class="row"><span class="eyebrow">memory against budget</span><span class="spacer"></span><span class="eyebrow" id="memText">0 / 1536 MB</span></div>
+            <div class="gauge"><i id="memBar"></i></div>
+          </div>
+          <div class="log" id="liveLog"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <footer class="foot">
+    <span>Peanut</span><span class="dot">·</span>
+    <span>Andrew Hingston</span><span class="dot">·</span>
+    <span>MIT</span>
+    <span class="spacer"></span>
+    <span id="footEngine"></span>
+  </footer>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

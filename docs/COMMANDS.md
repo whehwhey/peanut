@@ -1,0 +1,344 @@
+# COMMANDS — stdin command reference
+
+Peanut's engine (`engine/target/release/peanut`, crate name `automatheus`) reads a
+line-oriented script from stdin and prints one or more `OK`/`ERR`/other lines per
+command. This file enumerates every command exactly as implemented in
+`engine/src/main.rs`, plus the formula grammar (`engine/src/logic.rs`), the resource
+env vars, and worked examples. Always launch the engine through
+`explore/engine.py` (`docs/GUARD.md`, `docs/PYTHON-API.md`) — never invoke the
+binary directly from a script.
+
+Blank lines and lines starting with `#` are ignored. A script that does not end
+with `quit` has one appended automatically by `explore/engine.py`.
+
+## Session model
+
+The engine holds two pieces of mutable state:
+
+- `cur : Option<Dfao>` — the *current sequence*, set by `def`. Most commands need
+  one and print `ERR no sequence` if none is set.
+- `defs : Defs` — a `HashMap<String, (Vec<String>, Dfa)>` of named predicates bound
+  by `let` or `learnfe`, callable from later formulas as `$NAME(args)`. **`def`
+  clears `defs`** — a new sequence starts every named predicate over.
+
+## Commands
+
+### `mode msd|lsd`
+
+Sets the active digit order for every automaton built afterwards (affects
+`exists`'s zero-closure, `dfa`/`enum`'s word encoding, and word length in
+`witness`/`learnfe`). Global, not per-sequence.
+
+```
+> mode lsd
+OK mode lsd
+> mode msd
+OK mode msd
+```
+
+### `def NAME k m start w0 .. w_{m-1} coding`
+
+Defines the current sequence `T` as the output of a k-uniform morphism on an
+m-letter alphabet, applied to `start`, read through `coding`. `wA` is the length-k
+image of letter `A` (digit string, each digit `< m`); `coding` is a length-m digit
+string mapping each letter to its output symbol. The morphism must be prolongable
+at the start letter (`w_start[0] == start`). Clears all `let`/`learnfe` defs.
+
+```
+> def T 2 2 0 01 10 01
+OK def T k=2 states=2 lsd_states=2 mode=msd
+```
+
+Failure modes: `usage: def name k m start w0..w_{m-1} coding`; `bad k`/`bad m`/
+`bad start`; `expected N words + coding, got M`; `word A has length L, expected k`;
+`word A has a letter >= m`; `coding length != m`; `not prolongable at start letter`.
+
+### `seq [n]`
+
+Prints the first `n` terms (default 60) of the current sequence as a digit string.
+
+```
+> seq 20
+SEQ n=20 k=2 01101001100101101001
+```
+
+### `export NAME`
+
+Dumps the automaton for `NAME` as one line of JSON, for the Peanut GUI. `NAME` is
+either `T`/the sequence's own `def` name (the DFAO) or any predicate bound by
+`let`/`learnfe`. Format (see `engine/src/export.rs`):
+
+- **`kind:"dfa"`** (a `let`/`learnfe` predicate): `name`, `k`, `mode`, `vars`
+  (formula's free variables), `params` (the bound parameter list), `alpha`
+  (`k^tracks`), `nstates`, `shown` (states actually emitted), `truncated`,
+  `initial` (always 0), `accepting` (state indices), `labels` (per-symbol digit
+  tuple, one per track, in the automaton's sorted variable order), `trans`
+  (state -> symbol -> state; `-1` for a target beyond the truncation cap).
+- **`kind:"dfao"`** (the sequence itself): `name`, `k`, `mode`, `nstates`, `shown`,
+  `truncated`, `initial`, `out` (per-state output letter), `trans`
+  (state -> digit -> state), plus an `lsd` sub-object with the same shape for the
+  lsd-order automaton of the same sequence.
+
+Large automata are truncated to `AM_EXPORT_MAX` states (default 4000); truncated
+out-of-range transitions are written as `-1` and `truncated:true` is set.
+
+```
+> export T
+EXPORT {"kind":"dfao","name":"T","k":2,"mode":"msd","nstates":2,"shown":2,"truncated":false,"initial":0,"out":[0,1],"trans":[[0,1],[1,0]],"lsd":{"nstates":2,"shown":2,"out":[0,1],"trans":[[0,1],[1,0]]}}
+```
+
+Failure: `ERR no sequence`; `ERR export: no such predicate "NAME" (have: T, ...)`.
+
+### `fe_map i0 j0 size L`
+
+A `size x size` grid of `FE(i,j,L)` for `i in [i0, i0+size)`, `j in [j0, j0+size)`,
+computed by a *direct* LCP walk through the DFAO (`learn::Oracle::fe`) — no
+automaton is built. This is the ground truth an `FE`/`learnfe` automaton is
+supposed to encode, and is what the GUI's heatmap draws for comparison. `size` is
+capped at 512. Uses `AM_LEARN_LCP` (or `L+1` if larger) as the oracle's step cap.
+
+```
+> fe_map 0 0 4 3
+FEMAP i0=0 j0=0 size=4 l=3 ms=0 rows=1000,0100,0010,0001
+```
+
+Failure: `ERR no sequence`; `ERR usage: fe_map i0 j0 size L` (fewer than 4
+parseable numeric args).
+
+### `? formula` (alias `eval`)
+
+Compiles `formula` (see grammar below) and evaluates it.
+
+- **Closed formula** (no free variables): prints `TRUE` or `FALSE`, the automaton's
+  state count, the peak subset-construction size (`peak`, reset per query), and
+  elapsed ms.
+- **Open formula**: prints `OPEN`, the free variables in sorted order, state count,
+  whether the language is nonempty, elapsed ms, and up to 14 witnessing tuples
+  (base up to 12) via `Dfa::enumerate`.
+
+```
+> ? A i. T[i]=T[i]
+TRUE states=1 peak=1 ms=0 :: A i. T[i]=T[i]
+> ? E i. T[i]=1
+OPEN vars=[i] states=3 nonempty=true ms=0 witnesses=(1) (2) (3) ... :: E i. T[i]=1
+```
+
+### `witness formula`
+
+Like `?` but returns one concrete satisfying assignment instead of enumerating —
+specifically the assignment decoded from the **shortest** accepted word (BFS from
+the start state), or `NONE` if the language is empty. A closed formula degenerates
+to `TRUE`/`FALSE`.
+
+```
+> witness E i. T[i]=1
+WITNESS i=1 states=3 len=1 ms=0 :: E i. T[i]=1
+> witness A i. T[i]=2
+FALSE states=1 ms=0 :: A i. T[i]=2
+```
+
+### `let NAME(p1,p2,..) formula`
+
+Compiles `formula`, checks that every named parameter appears (a parameter absent
+from the body is legal and gets cylindrified in — unconstrained), errors if the
+body has any variable *not* in the parameter list, and registers the resulting DFA
+under `NAME` in `defs` with that parameter order. Later formulas call it as
+`$NAME(a1,a2,...)`.
+
+```
+> let EQ(i,j) T[i]=T[j]
+OK let EQ(i,j) states=3 ms=0
+> ? A i. $EQ(i,i)
+TRUE states=1 peak=3 ms=0 :: A i. $EQ(i,i)
+```
+
+Error: `ERR $NAME body has unbound variables [...] not in the parameter list`.
+
+### `learnfe NAME`
+
+Builds `FE(i,j,l) := A t. t < l => T[i+t] = T[j+t]` for the current sequence by
+Khodier-style guess-and-verify active learning (never compiling the direct
+universally-quantified formula) and registers it under `NAME` with parameters
+`(i,j,l)`, exactly as `let` would. See `docs/LEARNFE.md` for the full construction,
+correctness proof and benchmark table.
+
+```
+> learnfe FE
+OK learnfe FE(i,j,l) states=15 iters=1 eqs=1 ces=14 mqs=42502 steps=... peak=0 ms=34
+> ? A i,j,l. $FE(i,j,l) => (l=0 | T[i]=T[j])
+TRUE ...
+```
+
+Output fields: `states` (minimal DFA size), `iters` (learner rounds), `eqs`
+(equivalence queries run), `ces` (counterexamples processed), `mqs` (membership
+queries to the LCP oracle), `steps` (oracle work units), `peak` (max subset-
+construction size seen during verification), `ms` (wall time), and — only when
+nonzero — `capped_lcp=N`, the count of oracle queries that hit the `AM_LEARN_LCP`
+step cap and were answered as `LCP = infinity` (harmless by the self-verification
+argument; see LEARNFE.md §3). Failure: `ERR learnfe no progress ...` /
+`ERR learnfe gave up after N iterations` — reported, not hidden, and the only
+failure mode (correctness cannot be wrong, only non-termination).
+
+### `enum B formula`
+
+Lists every accepted tuple with every coordinate `< B` (default 20 if `B` is
+unparseable), by brute-force enumeration of all `B^n` tuples run against the
+compiled DFA (not `Dfa::enumerate`'s BFS sampler — this is exhaustive up to `B`).
+A closed formula (0 free variables) prints `CLOSED TRUE`/`CLOSED FALSE` instead.
+
+```
+> enum 8 T[i]=1
+ENUM vars=[i] n=4 1,2,4,7
+```
+
+### `dfa formula`
+
+Compiles `formula` and dumps its automaton: state count, digit order/base, every
+state's transition row (`q<n>` or `q<n>*` if accepting, arrows indexed by symbol),
+and up to 40 sample accepted tuples (max length 12) from `Dfa::enumerate`.
+
+```
+> dfa T[i]=1
+DFA vars=[i] states=3 (msd base 2, padding allowed)
+  q0  -> [1 0]
+  q1* -> [2 1]
+  q2  -> [2 2]
+  members: 1 2 3 5 6 7 ...
+```
+
+### `finite formula`
+
+For a one-free-variable formula, decides whether the accepted set is finite by
+graph analysis (no cycle on any start-to-accept path among "useful" states — those
+that can reach acceptance). Prints `EMPTY`, `INFINITE states=N`, or
+`FINITE size=S max=M states=N` (`M` from `Dfa::enumerate(200000, 40)` over the
+finite set — the intended use is proving statements like "P(n) <= c only finitely
+often" by exhibiting the largest exception).
+
+```
+> finite T[i]=1 & i<10
+FINITE size=4 max=9 states=3 :: T[i]=1 & i<10
+```
+
+### `mem`
+
+Reports the counting allocator's current and peak live-byte usage (see
+`docs/GUARD.md` §1 / `engine/src/membudget.rs`). Put it right after a `let`/
+`learnfe`/`?` to measure that command's footprint.
+
+```
+> mem
+OK mem live=12MB peak=88MB
+```
+
+### `quit` / `exit`
+
+Ends the session (breaks the stdin read loop). `explore/engine.py` appends `quit`
+automatically if a script doesn't end with it.
+
+### Unrecognized command
+
+```
+> foo
+ERR unknown command "foo"
+```
+
+## Formula grammar
+
+Sentences are parsed by `engine/src/logic.rs` (`Parser`/`Ast`) over the current
+sequence, named `T` inside formulas regardless of the `def` name.
+
+**Quantifiers**: `A v1,v2,... . body` / `E v1,v2,... . body` (also spelled
+`forall`/`exists`); the `.` separator is optional. Multiple comma-separated
+variables are sugar for nested quantifiers of the same kind.
+
+**Boolean connectives**, standard precedence (loosest to tightest):
+`<=>`  `=>`  `|`  `&`  `~` / `!` (unary not). Parentheses group; `true`/`false`
+are literals.
+
+**Arithmetic terms** (`Lin`, linear forms over `N`): variables, non-negative
+integer literals, `+`, `-` (as long as the compiled form's coefficients are
+non-negative after normalization — negative terms are rejected at compile time
+with `"negative index"`/`"negative argument"`/`"negative argument to pow"`),
+`n*v` / `v*n` scaling, parenthesization.
+
+**Comparisons**: `t1 REL t2` for `REL` in `= != ~= < <= > >=` (`~=` is an alias
+for `!=`) between two arithmetic terms.
+
+**Sequence terms**: `T[t]` where `t` is an arithmetic term (`T` = the seqname
+compiled against, always literally `T` in source even though `def` takes an
+arbitrary NAME). Two forms, `=`/`!=` only:
+- `T[t] = a` / `T[t] != a` — compare against a numeral output letter `a`.
+- `T[t1] = T[t2]` / `T[t1] != T[t2]` — compare two positions.
+
+**`pow(t)`**: true iff the value of `t` is an exact power of `k` (the current
+sequence's base), via `base::power_of_k`.
+
+**Named-predicate calls**: `$NAME(t1,t2,...)` — invokes a `let`/`learnfe`
+definition, substituting arithmetic terms for its parameters (arguments must be
+non-negative; arity must match).
+
+## Environment variables
+
+| var | default | meaning |
+|---|---|---|
+| `AM_MEM_MB` | 2048 | Hard allocator budget (MB) for the whole process — `engine/src/membudget.rs`. On breach: `ERR memory budget exceeded (N MB)` to stdout, matching line to stderr, exit code 3. |
+| `AM_CAP0` | 50000 | First (cheap) forward subset-construction cap tried by every `exists` — `engine/src/dfa.rs`. |
+| `AM_CAP` | 3000000 | Last-resort forward subset-construction cap, tried after Brzozowski(cap0*4) fails. |
+| `AM_LEARN_LCP` | 2^22 (4194304) | Step cap on the LCP membership-oracle walk inside `learnfe`; a pair surviving the cap is treated as `LCP = infinity` (harmless, see LEARNFE.md). |
+| `AM_LEARN_LCP_MAX` | 2^26 (67108864) | Ceiling `AM_LEARN_LCP` is allowed to escalate to when the learner detects a stall and retries with a larger cap. |
+| `AM_LEARN_WITNESS` | 256 | Max shortest-counterexample witnesses harvested per round from `Dfa::bfs_tree`/`word_to`. |
+| `AM_LEARN_DIGITS` | (see `learn.rs`) | Max digit-length used by the boundary-sampling counterexample search. |
+| `AM_LEARN_SAMPLES` | (see `learn.rs`) | Number of random boundary-sampling probes run before each equivalence query. |
+| `AM_LEARN_ITERS` | (see `learn.rs`) | Cap on learner rounds before giving up with `ERR learnfe gave up after N iterations`. |
+| `AM_LEARN_PROBE` | (see `learn.rs`) | Size of the magnitude-preserving local-neighbourhood crawl around each counterexample. |
+| `AM_LEARN_DEBUG` | unset | If set, print learner progress (stall/cap-raise events) to stderr. |
+| `AM_DEBUG` | unset | If set, `logic.rs` traces each `exists`/`forall` compilation step (vars, state count) to stderr. |
+| `AM_DEBUG2` | unset | If set, `dfa.rs` traces the determinization-ladder branch taken and resulting state counts to stderr. |
+| `AM_PROGRESS` | unset (0) | If set to a nonempty value other than `0`, the engine emits structured progress events — one JSON object per line — to **stderr** during `?`/`eval`/`let`/`witness`/`enum`/`dfa`/`finite`/`learnfe`: `phase` (compile-stage start, e.g. forward/brzozowski/minimize/learn/verify), `subsets` (subset-construction tick, ~every 50k subsets, with live MB), `states` (an automaton just built), `mem`, `learn` (one per learner equivalence query), and `done` (end of the top-level command, with live/peak MB). stdout is untouched — every existing script's line-protocol parsing keeps working. Cost when off: one relaxed atomic load per call site, no formatting, no allocation, no syscall. |
+| `AM_EXPORT_MAX` | 4000 | Max states written by `export` before truncating (`truncated:true`, out-of-range transitions as `-1`). |
+
+The Python runner (`explore/engine.py`) adds its own env vars for process-level
+resource control — `AM_WORKERS`, `AM_FLOOR_MB` — documented in `docs/GUARD.md` and
+`docs/PYTHON-API.md`; these govern the runner, not the engine binary.
+
+This file tracks `engine/src/main.rs` exactly, including the GUI-support commands
+(`export`, `fe_map`) and the `AM_PROGRESS` diagnostic channel. If a command or env
+var you need is missing from both the source and this file, it does not exist yet:
+extend `main.rs`/the relevant module and update this file in the same change (see
+`CONTRIBUTING.md`).
+
+## A full session
+
+```
+mode msd
+def T 2 2 0 01 10 01
+seq 16
+let EQ(i,j) T[i]=T[j]
+? A i. $EQ(i,i)
+witness E i,j. i!=j & $EQ(i,j)
+learnfe FE
+? A i,j. $FE(i,j,0)
+fe_map 0 0 4 3
+export FE
+enum 10 T[i]=1
+finite T[i]=1 & i<10
+mem
+quit
+```
+
+```
+OK mode msd
+OK def T k=2 states=2 lsd_states=2 mode=msd
+SEQ n=16 k=2 0110100110010110
+OK let EQ(i,j) states=3 ms=0
+TRUE states=1 peak=3 ms=0 :: A i. $EQ(i,i)
+WITNESS i=1 j=2 states=... len=... ms=... :: E i,j. i!=j & $EQ(i,j)
+OK learnfe FE(i,j,l) states=15 iters=1 eqs=1 ces=14 mqs=42502 steps=... peak=0 ms=34
+TRUE states=... peak=... ms=... :: A i,j. $FE(i,j,0)
+FEMAP i0=0 j0=0 size=4 l=3 ms=0 rows=1000,0100,0010,0001
+EXPORT {"kind":"dfa","name":"FE","k":2,"mode":"msd","vars":["i","j","l"],"params":["i","j","l"],...}
+ENUM vars=[i] n=4 1,2,4,7
+FINITE size=4 max=9 states=3 :: T[i]=1 & i<10
+OK mem live=..MB peak=..MB
+```
