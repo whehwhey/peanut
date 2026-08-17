@@ -34,6 +34,10 @@ See `BENCHMARKS.md`: parity with Walnut on easy inputs; on the FE-hard inputs an
 
 ## Quick start
 
+One command (needs Rust + Python 3): `./start.sh` — builds the engine if needed, starts the web GUI, opens your browser. Add `--port 8080` to change the port.
+
+Manual:
+
 ```
 cd engine && cargo build --release
 echo 'mode msd
