@@ -24,6 +24,10 @@ fail fast into Brzozowski/reverse-first determinization, escalate) for the gener
 case, and `learnfe`, which never builds the blow-up intermediate at all — see
 `docs/LEARNFE.md` for the construction and its correctness argument.
 
+## Benchmarks
+
+See `BENCHMARKS.md`: parity with Walnut on easy inputs; on the FE-hard inputs and on Tribonacci numeration Peanut answers where Walnut 8-dev runs out of memory at the same 6 GB (Khodier's Tribonacci FE: 3.1 s / 133 MB, or 0.07 s via `learnfe`).
+
 ## Quick start
 
 ```
