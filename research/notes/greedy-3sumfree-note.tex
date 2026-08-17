@@ -1,0 +1,388 @@
+% Build:  tectonic paper/greedy-3sumfree-note.tex
+\documentclass[10pt,reqno]{amsart}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{microtype}
+\usepackage[margin=0.8in]{geometry}
+\usepackage[colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue]{hyperref}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{conjecture}[theorem]{Conjecture}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{observation}[theorem]{Observation}
+
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\numberwithin{theorem}{section}
+
+% compact vertical spacing
+\setlength{\abovedisplayskip}{5pt}
+\setlength{\belowdisplayskip}{5pt}
+\setlength{\abovedisplayshortskip}{3pt}
+\setlength{\belowdisplayshortskip}{3pt}
+\makeatletter
+\def\thm@space@setup{\thm@preskip=5pt \thm@postskip=5pt}
+\makeatother
+
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\G}{G}
+
+\begin{document}
+
+\title[Conjecture 17 on greedy 3-sumfree sequences]{The greedy 3-sumfree meta-conjecture:
+a proof, sharp on the range $g \ge d$}
+
+\author{Andrew Hingston}
+\email{\texttt{hingstonandrew@icloud.com}}
+
+\date{18 August 2026}
+
+\subjclass[2020]{11B75, 03B25, 68Q45}
+\keywords{greedy sum-free sequence, Presburger arithmetic, decision procedure, automatic
+sequence, Walnut, Peanut, Journal of Integer Sequences}
+
+\begin{abstract}
+Bosma, Bruin, Fokkink, Grube, Reuijl and Tromp \cite{Fokkink} conjecture (Conjecture~17,
+their ``meta-conjecture'') a closed periodic description of the greedy 3-sumfree sequence
+$S_{1,g,g+d}$ for every $d \ge 2$ and $g \ge d+1$, and report that they could not verify it
+uniformly in $(g,d)$ because their decision procedure, Walnut, rejects the required term
+$k \cdot(5g+2d)$ as a product of two variables. We prove the conjecture, and show it remains
+true down to $g = d$: writing $\G(g,d) = \{1,g\} \cup [g+d,2g+d] \cup
+\bigcup_{k \ge 1}\bigl(k(5g{+}2d) + [g{+}d{-}2,\,2g{+}d{-}2]\bigr)$ for the conjectured answer
+set, we prove $\G(g,d) = S_{1,g,g+d}$ iff $d \ge 2$, $g \ge d$ and $(g,d) \ne (2,2)$ ---
+exactly the range on which it can hold. This is strictly larger than the
+conjectured hypothesis $g \ge d+1$: it adds the diagonal $g=d$, $d \ge 3$. The proof is by
+hand, an interval-sumset argument in the style O.\ Shtrezi used for the $d=1$ companion
+conjecture, and independently by machine: the paper's obstruction is removed by a one-line
+change of variables that turns the parametrised-modulus statement into ordinary Presburger
+arithmetic, decided by the Peanut decision procedure as eight sentences quantified over all
+$(g,d)$ at once (6.2\,s total), and reproduced in Walnut~8-dev. Every finite claim was
+independently re-verified, by a second implementation sharing no code with the first, over
+thousands of $(g,d)$ cells and by a second decision procedure.
+\end{abstract}
+
+\maketitle
+
+\section{Background and the conjecture}
+\label{sec:bg}
+
+For integers $x<y<z$, the \emph{greedy 3-sumfree sequence} $S_{x,y,z}$ is the increasing
+sequence beginning $x,y,z$ in which each later term is the least integer exceeding the
+previous term that is \emph{not} a sum of three distinct earlier terms. $S_{1,2,3}$ and
+$S_{1,3,4}$ are OEIS \href{https://oeis.org/A026471}{A026471} and
+\href{https://oeis.org/A026475}{A026475}. Bosma, Bruin, Fokkink, Grube, Reuijl and Tromp
+\cite{Fokkink} study these sequences with the automatic-sequence decision procedure Walnut,
+proving closed forms for $S_{1,2,3}$, $S_{1,3,4}$, $S_{1,4,5}$ (their Theorem~15) and, for the
+family $S_{1,g,g+1}$, a conjecture (their Conjecture~16) later proved by O.\ Shtrezi
+\cite{Shtrezi}. For the two-parameter family $S_{1,g,g+d}$, $d \ge 2$, they report ``firm
+computational evidence, from an implementation in Magma'', for the following, quoted
+verbatim:
+
+\begin{conjecture}[{\cite[Conjecture~17]{Fokkink}}]
+\label{conj17}
+Let $d\geq 2$. For every $g\geq d+1$ the greedy 3-sumfree sequence $S_{1,g,g+d}$ is
+characterized as follows:
+\[
+z\in S_{1,g,g+d}\iff z\in\{1,g,2g+d-1,2g+d\}\ \text{or}\ z\geq g+d\ \text{and}\
+z\bmod 5g+2d\in\{g+d-2, g+d-1,\ldots, 2g+d-2\}.
+\]
+In particular, for $d\geq 2$ and every $g\geq d+1$ after the first $g+3$ entries (in a
+preperiod) the sequence $S_{1,g,g+d}$ modulo $5g+2d$ is periodic with period $g+1$.
+\end{conjecture}
+
+(The arXiv preprint version~1 \cite{Fokkink} prints $z>g+d$ where the published Journal of
+Integer Sequences text has $z\ge g+d$; this is a typo in v1, since $z=g+d$ is a seed of the
+sequence and so must be admitted; the paper's own worked example uses $z\ge 8 = g+d$. We use
+the published $\ge$ form throughout, as does the statement above.) The authors state that
+Walnut cannot verify Conjecture~\ref{conj17} uniformly in $(g,d)$: the term
+$z=k\cdot(5g+2d)+w$ needs the operator $*$ applied to two variables ($k$ and $g$, or $k$ and
+$d$), which their tool rejects outright, though ``whenever a numerical value is substituted
+for $g$ \dots\ all is fine''; they verify individual instances this way. As of August~2026 no
+treatment of Conjecture~\ref{conj17} for general $(g,d)$ was found in the literature; the only
+citing work, Shtrezi's proof of the $d=1$ case \cite{Shtrezi}, does not mention $d\ge2$ or the
+meta-conjecture, and the paper's own Remarks~18 says the $d=1$ family is \emph{not} a special
+case of Conjecture~\ref{conj17}. The conjecture was open.
+
+\section{The theorem}
+\label{sec:thm}
+
+For $d\ge 2$, $g\ge 2$ write $m=5g+2d$ and let $\G(g,d)$ be the right-hand side of
+Conjecture~\ref{conj17}, viz.
+\[
+\G(g,d) \;=\; \{1,g\}\ \cup\ [g+d,\,2g+d]\ \cup\ \bigcup_{k\ge1}\bigl(km+[g+d-2,\,2g+d-2]\bigr).
+\]
+
+\begin{theorem}
+\label{thm:main}
+Let $d\ge 2$ and $g\ge 2$. Then $\G(g,d)=S_{1,g,g+d}$ if and only if $g\ge d$ and
+$2g\ge d+3$; equivalently, if and only if $g \ge d$ and $(g,d)\ne(2,2)$.
+\end{theorem}
+
+In one sentence: Conjecture~\ref{conj17} is true exactly as stated, for $d\ge2$, $g\ge d+1$,
+and Theorem~\ref{thm:main} shows it remains true on the strictly larger range $d\ge2$,
+$g\ge d$, $(g,d)\ne(2,2)$ --- which is exactly the range on which the description \emph{can}
+be correct, since Theorem~\ref{thm:main} is an ``if and only if''. The extra range is the
+diagonal $g=d$, $d\ge3$ (e.g.\ $S_{1,3,6}$, $S_{1,4,8}$, $S_{1,5,10}$, \dots), which
+Conjecture~\ref{conj17}'s hypothesis $g\ge d+1$ excludes; amusingly the paper's own worked
+verification, following its Example~19, is the instance $(g,d)=(4,4)$, on that diagonal and
+outside the conjecture's own hypothesis.
+
+\begin{corollary}
+\label{cor:period}
+For $d\ge2$, $g\ge d$, $(g,d)\ne(2,2)$, $S_{1,g,g+d}$ begins with the $g+3$ terms
+$1,\,g,\,g+d,\,g+d+1,\,\dots,\,2g+d$ and from there repeats, modulo $m=5g+2d$, the block of
+$g+1$ residues $g+d-2,\,g+d-1,\,\dots,\,2g+d-2$, one block per period --- the explicit form of
+Conjecture~\ref{conj17}'s ``periodic with period $g+1$''.
+\end{corollary}
+
+\section{Proof}
+\label{sec:proof}
+
+\subsection*{The obstruction, and its removal}
+Fixing $g,d$ numerically, $z=k\cdot m+w$ is an ordinary linear (Presburger) term and
+individual instances of Conjecture~\ref{conj17} verify at once, as the source paper does. With
+$g,d$ free, $k\cdot(5g+2d)$ is a product of variables and is rejected outright. The fix needs
+no new mathematics, only a change of variables: never name $z$, but carry every integer as a
+$(\text{quotient},\text{remainder})$ pair against $m$.
+
+\begin{lemma}[Carry split]
+\label{lem:carry}
+Let $m\ge1$ and let $a=k_am+w_a$, $b=k_bm+w_b$, $c=k_cm+w_c$, $z=k_zm+w_z$ with
+$0\le w_a,w_b,w_c,w_z<m$. Then
+\[
+a+b+c=z \iff \exists\, j\in\{0,1,2\}:\ w_a+w_b+w_c = w_z + jm\ \ \text{and}\ \
+k_a+k_b+k_c+j = k_z .
+\]
+\end{lemma}
+\begin{proof}
+Put $j=k_z-(k_a+k_b+k_c)$. If $a+b+c=z$ then $jm=(w_a+w_b+w_c)-w_z$, and the right side lies
+in $[-(m-1),3m-3]$, forcing $-1<j<3$, i.e.\ $j\in\{0,1,2\}$; this $j$ is unique since $jm$
+determines it, and the displayed equalities hold. The converse is immediate.
+\end{proof}
+
+Since $j$ ranges over the fixed finite set $\{0,1,2\}$, each disjunct's $jm=j(5g+2d)$ is
+\emph{linear} in $g,d$: the product of variables never reappears. This is folklore --- the
+schoolbook carry argument for sums of a bounded number $r$ of terms, giving $j\in
+\{0,\dots,r-1\}$ in general --- and is not claimed as new mathematics; the contribution is
+recognising that it removes exactly the blocker \cite{Fokkink} reports. It is, as the
+underlying attack document puts it, ``a reformulation, not a prover capability''.
+
+\subsection*{The pen-and-paper route}
+Write $B=[g+d,2g+d]$ ($g+1$ integers) and $A_k=km+[g{+}d{-}2,2g{+}d{-}2]$ for $k\ge1$, so
+$\G(g,d)=\{1,g\}\cup B\cup\bigcup_{k\ge1}A_k$. Using $2^X=\{x+y:x,y\in X,\,x<y\}$ and
+$3^X=\{x+y+z:x,y,z\in X,\,x<y<z\}$ (as in \cite{Shtrezi}), the complement of $\G$ above the
+seeds splits into gaps $\mathrm{Gap}_0=[2g{+}d{+}1,\,6g{+}3d{-}3]$ and
+$\mathrm{Gap}_k=km+[2g{+}d{-}1,\,6g{+}3d{-}3]$ for $k\ge1$. Four propositions, each an interval
+computation, give Theorem~\ref{thm:main} by induction:
+
+\begin{proposition}[Maximality]
+\label{propA}
+If $d\ge2$, $g\ge d$, $2g\ge d+3$, every $z>g+d$ with $z\notin\G$ is a sum of three distinct
+elements of $\G$.
+\end{proposition}
+\begin{proposition}[3-sumfreeness]
+\label{propB}
+If $d\ge2$, $g\ge2$, no element of $\G$ is a sum of three distinct elements of $\G$. (Needs
+only $g,d\ge2$, not $g\ge d$.)
+\end{proposition}
+\begin{proposition}[Seeds]
+\label{propC}
+If $d\ge2$, $g\ge2$, then $\G\cap[1,g+d]=\{1,g,g+d\}$.
+\end{proposition}
+\begin{proposition}[Sharpness]
+\label{propD}
+If $2\le g<d$, then $z=3g+d+2$ satisfies $z>g+d$, $z\notin\G$, and $z$ is not a sum of three
+distinct elements of $\G$; hence $\G\ne S_{1,g,g+d}$. The same holds at $(g,d)=(2,2)$, at
+$z=14$.
+\end{proposition}
+
+Proposition~\ref{propB} is proved by a twelve-case check: $\G$ splits into the four parts
+$\{1\},\{g\},B,A_k$, and every sum of three (not necessarily distinct-part) summands is shown
+to land inside a $\mathrm{Gap}$, using $2^B=[2g{+}2d{+}1,4g{+}2d{-}1]$,
+$3^B=[3g{+}3d{+}3,6g{+}3d{-}3]$ and the analogous identities for the $A_k$; the only place the
+hypothesis $d\ge2$ is used is the lower end of the $1+A_i+A_j$ case, which is exactly why
+$d=1$ needs a different modulus (Shtrezi's). Proposition~\ref{propA} covers each
+$\mathrm{Gap}_0$/$\mathrm{Gap}_k$ by a chain of four sumset intervals whose junctions are
+exactly $g\ge d$ and $2g\ge d+3$. Proposition~\ref{propD}'s witness $z=3g+d+2$ falls in
+$\mathrm{Gap}_0$ but below every covering interval that needs $g<d$; the step from ``$z$ is
+not a 3-sum'' to ``the greedy rule admits it, so $\G\ne S$'' additionally needs $\G$ and $S$
+to agree on $[1,z)$, which they do: the only part of $\mathrm{Gap}_0$ below $z$ is
+$[2g{+}d{+}1,3g{+}d{+}1]=1+g+B$, covered with \emph{no} hypothesis at all, so the induction
+below runs unobstructed up to $z$ for every $g,d\ge2$. Full case-by-case verification of all
+twelve rows and both covering chains is in \cite[\S4]{Attack4}.
+
+The four propositions combine by strong induction: Proposition~\ref{propC} settles $[1,g+d]$;
+for $z>g+d$, every representation $z=a+b+c$ with $a,b,c\in\G$ has $a,b,c<z$, so by the
+induction hypothesis they are exactly the earlier terms of $S_{1,g,g+d}$; then
+Proposition~\ref{propA} (if $z\notin\G$) or Proposition~\ref{propB} (if $z\in\G$) tells the
+greedy rule what to do, matching $\G$. This proves Theorem~\ref{thm:main}'s ``if''; the ``only
+if'' is Proposition~\ref{propD} together with the trichotomy $g<d$, $(g,d)=(2,2)$, or
+$g\ge d\wedge 2g\ge d+3$, which is exhaustive for $d,g\ge2$.
+
+\subsection*{The machine route}
+The same statement is also settled by decision procedure, with no hand argument. Encode
+$k\cdot m+w \in \G(g,d)$ as a predicate $\mathrm{ING}(k,w)$ in $(k,w,g,d)$ directly from the
+definition of $\G$; every disjunct forces $w\le 2g+d<m$, so the encoding is injective (checked
+as obligation T1 below), which is what licenses Lemma~\ref{lem:carry} without an explicit
+$w<m$ guard on the summands. The sum and distinctness conditions become, via
+Lemma~\ref{lem:carry}, ordinary linear Presburger formulas in ten free variables
+$(g,d,k_a,k_b,k_c,k_z,w_a,w_b,w_c,w_z)$. Propositions~\ref{propA}--\ref{propD} (with a
+restricted, sound existential witness family for Proposition~\ref{propA}'s ``there exist
+three distinct elements summing to $z$'', since the fully unrestricted six-variable
+existential exhausts a 6\,GB budget in both provers after $\sim$280\,s and remains out of
+reach) become eight closed first-order sentences T0--T7, each discharged by automaton
+compilation in the Peanut decision procedure in 6.2\,s total (peak 1.3\,GB), and independently
+reproduced --- posed as universally quantified sentences, which forces the full ten-fold
+existential projection Peanut's `witness'-on-open-formula route does not need --- in Walnut
+8-dev (52.7\,s total). The full transcript, formulas, and driver are
+\texttt{explore/attack4\_engine.py}, \texttt{explore/attack4\_walnut.py},
+\texttt{results/attack4\_transcript.txt}, \texttt{results/attack4\_engine.json} and
+\texttt{results/attack4\_walnut\_uniform.json}, all in the repository below; the full account
+is \cite{Attack4}, \S5.
+
+\section{Verification}
+\label{sec:verify}
+
+Every claim above was re-derived and independently re-checked, with code sharing nothing with
+the implementation that produced it, in a referee pass whose transcript is \cite{Verdict}. The
+hand proof of \S\ref{sec:proof} was re-derived step by step, including all twenty-four
+interval-endpoint inequalities and both covering chains, and no gap was found; the primary
+source \cite{Fokkink} was independently re-fetched from the published J.\ Integer Seq.\ LaTeX
+source, not quoted from memory, and Conjecture~\ref{conj17}'s wording and the $\ge$-vs-$>$
+point confirmed against it directly.
+
+\begin{center}\footnotesize
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{6.3cm}>{\raggedright\arraybackslash}p{5.6cm}>{\raggedright\arraybackslash}p{3.3cm}@{}}
+\toprule
+Check (independent implementation) & Scope & Result \\
+\midrule
+Theorem~\ref{thm:main}'s iff vs.\ real greedy sequences
+  & $d=2\dots30$, $g=2\dots200$, 40 periods of $5g+2d$ (5771 cells)
+  & 0 mismatches \\
+Proposition~\ref{propD}'s first-failure point $3g+d+2$ (and $14$ at $(2,2)$)
+  & every failing cell above
+  & exact in all of them \\
+adversarial spot checks, e.g.\ $(100,100)$, $(200,3)$, $(3,200)$, $(52,50)$
+  & 11 cells
+  & 0 mismatches \\
+Propositions~\ref{propA}--\ref{propD}, Lemma~\ref{lem:carry}, encoding injectivity, all
+  twelve interval containments, both covering chains, restricted-witness soundness and
+  completeness
+  & $d=2\dots14$, $g=2\dots30$ (377 cells)
+  & 0 failures \\
+Proposition~\ref{propB} in the failing region $g<d$
+  & same grid
+  & never fails \\
+$d=1$ control, meta-conjecture's own modulus $5g+2$
+  & $g=2\dots11$
+  & description \emph{and} 3-sumfreeness both fail --- confirms $d\ge2$ is load-bearing \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The eight obligations of \S\ref{sec:proof} were also re-posed independently, as closed
+universally quantified sentences in a different (equivalent) predicate shape, and re-run in
+both Peanut and Walnut~8-dev: all TRUE, including the ten-variable 3-sumfreeness sentence
+(Peanut, 3.50\,s, peak 1252\,MB; Walnut, 41.8\,s) and, transcribed verbatim from the published
+LaTeX source, the paper's own worked $(g,d)=(4,4)$ Walnut fragment (TRUE, 0.3\,s) --- two
+independent decision-procedure implementations, two independent formula shapes, agreeing on
+every check. The unrestricted six-variable existential for Proposition~\ref{propA} was
+attempted again independently and killed by a memory watchdog at 4874\,MB after 274.5\,s,
+confirming it is genuinely out of reach with both provers as currently implemented, not an
+artefact of one encoding.
+
+\section{Remarks}
+\label{sec:remarks}
+
+\subsection*{What is new, and what is not}
+\S\ref{sec:proof}'s pen-and-paper argument is a competent transposition of Shtrezi's
+interval-sumset technique \cite{Shtrezi} to a different modulus and range, not a new
+technique; the partition of $\G$, the gap structure, and the two-proposition induction are
+his. What is new is doing this for $d\ge2$, which nobody had done, and the \emph{exact} range:
+Proposition~\ref{propD}, which has no counterpart in \cite{Shtrezi}, is what turns an
+implication into the sharp equivalence of Theorem~\ref{thm:main} and extends
+Conjecture~\ref{conj17} to the diagonal $g=d$, $d\ge3$. Lemma~\ref{lem:carry} is schoolbook
+mathematics; its role here is a change of variables, not a theorem, and it should be credited
+as such --- the honest place to put the credit is the reformulation, not any capability of the
+decision procedure. The explicit preperiod/period of Corollary~\ref{cor:period}, which
+\cite{Fokkink} states only as a count, is a small genuine addition.
+
+\subsection*{What is not settled}
+The \emph{irregular} region $2\le g<d$ and $(g,d)=(2,2)$ is left open: Theorem~\ref{thm:main}
+shows the regular description $\G(g,d)$ fails there, but says nothing about the correct
+description, which \cite[Remarks~18]{Fokkink} already notes is irregular (their Example~19,
+$S_{1,5,12}$, is periodic with modulus $321$ and period $32$ --- not of the form $5g+2d$).
+Start values other than $1$ are untouched. Whether a better decision-procedure ladder can
+project the fully unrestricted six-variable existential of Proposition~\ref{propA} directly,
+rather than via the restricted-but-sound witness family used here, remains open; \S4
+confirms it is out of reach in both Peanut and Walnut~8-dev as they currently stand.
+
+\subsection*{Acknowledgement and declaration of AI usage}
+This note, and the work behind it, were produced with substantial use of a large language
+model. This note carries this declaration from its first version. Precisely: the models were Claude (Anthropic): \texttt{claude-fable-5} as the orchestrating model, with \texttt{claude-opus-5} and \texttt{claude-sonnet-5} sub-agents for search, implementation, refereeing and drafting, all used through the Claude Code agent framework; they were used for (i) the literature and primary-source search, including
+fetching and checking the published Journal of Integer Sequences LaTeX source directly rather
+than quoting it from memory; (ii) the design and implementation of Peanut, the open-source
+decision procedure with which every machine computation here was run; (iii) the discovery of
+the carry-split reformulation of Lemma~\ref{lem:carry}, and the statement and proof of
+Theorem~\ref{thm:main} and Propositions~\ref{propA}--\ref{propD}, following the interval-sumset
+technique of \cite{Shtrezi}; (iv) an adversarial ``referee'' pass, also carried out by the
+model, which re-derived every step by hand, re-read the primary source independently, wrote
+brute-force and decision-procedure checks sharing no code with the original implementation,
+and found and corrected several defects in an earlier draft of the underlying analysis; and
+(v) the drafting of this text, most of which is the model's output lightly edited by the
+author. The author directed the work, chose the problem, read and takes responsibility for
+every statement, and ran the computations. All finite claims were verified by the independent
+implementations described in Section~\ref{sec:verify}; the referee transcript is
+\texttt{research/referee-verdicts/attack4-verdict.md} in the repository below. Any errors are the author's.
+
+\begin{thebibliography}{9}
+\setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}\setlength{\parskip}{0pt}
+
+\bibitem{Attack4}
+A. Hingston,
+\emph{Attack target 4 --- the greedy 3-sumfree meta-conjecture},
+research note, \texttt{research/attacks/ATTACK-4.md} in the Peanut repository,
+\url{https://github.com/whehwhey/peanut}, 2026.
+
+\bibitem{Fokkink}
+W. Bosma, R. Bruin, R. Fokkink, J. Grube, A. Reuijl, and T. Tromp,
+\emph{Using Walnut to Solve Problems from the OEIS},
+J. Integer Seq. \textbf{28} (2025), Article 25.3.8;
+arXiv:2503.04122v1 [math.NT], 6 March 2025.
+
+\bibitem{OEIS-A026471}
+OEIS Foundation Inc.,
+\emph{The On-Line Encyclopedia of Integer Sequences}, entry A026471,
+\url{https://oeis.org/A026471}.
+
+\bibitem{OEIS-A026475}
+OEIS Foundation Inc.,
+\emph{The On-Line Encyclopedia of Integer Sequences}, entry A026475,
+\url{https://oeis.org/A026475}.
+
+\bibitem{Shtrezi}
+O. Shtrezi,
+\emph{The greedy 3-sumfree sequence $S_{1,g,g+1}$},
+arXiv:2606.17447 [math.NT], 13 June 2026.
+
+\bibitem{Verdict}
+A. Hingston,
+\emph{Referee verdict on \texttt{research/attacks/ATTACK-4.md} in the Peanut repository},
+\texttt{research/referee-verdicts/attack4-verdict.md},
+\url{https://github.com/whehwhey/peanut}, 2026.
+
+\end{thebibliography}
+
+\end{document}
