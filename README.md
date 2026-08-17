@@ -65,9 +65,11 @@ Standard library only, no build step. See `gui/README.md`.
 
 ## Results
 
-This repo is the engine and tooling. The research write-up — the equality-of-factors
-blow-up result, the benchmark data, and the paper — lives in a separate (currently
-private) research repo; a public link will be added here when it is released.
+The research produced with Peanut is in `research/`: preprint notes (including the answer to
+Open Problem 1 of Moradi–Rampersad–Shallit on linear subsequences of automatic sequences), the
+equality-of-factors sweep and proofs, seven open-problem attack write-ups, and the adversarial
+referee reports that state exactly what is proved, machine-verified, or open. Benchmark data is
+in `BENCHMARKS.md`.
 
 ## Architecture
 
