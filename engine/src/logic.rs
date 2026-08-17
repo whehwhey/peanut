@@ -535,7 +535,16 @@ numeration system {:?} (drop `numsys` to go back to base k)", ns.name));
             }
             Ast::Not(x) => self.compile(x)?.complement(),
             Ast::And(x, y) => { let a = self.compile(x)?; let b = self.compile(y)?; a.and(&b) }
-            Ast::Or(x, y) => { let a = self.compile(x)?; let b = self.compile(y)?; a.or(&b) }
+            Ast::Or(x, y) => {
+                let a = self.compile(x)?; let b = self.compile(y)?;
+                let r = a.or(&b);
+                // Cylindrifying the narrower operand up to the union of the two
+                // variable lists makes it accept any digit on the new track,
+                // valid or not, whenever its own predicate holds -- so under a
+                // numeration system the union can leak invalid representations.
+                // Mirrors compat.rs::or_r.
+                if a.vars != b.vars { crate::numsys::restrict(&r) } else { r }
+            }
             Ast::Imp(x, y) => { let a = self.compile(x)?; let b = self.compile(y)?; a.implies(&b) }
             Ast::Iff(x, y) => { let a = self.compile(x)?; let b = self.compile(y)?; a.iff(&b) }
             Ast::Exists(vs, x) => {

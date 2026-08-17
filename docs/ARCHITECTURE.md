@@ -15,6 +15,10 @@ engine/src/
   membudget.rs   global allocator with a hard live-byte budget (docs/GUARD.md)
   export.rs      `export` command: automaton -> flat JSON, for the GUI (docs/COMMANDS.md)
   progress.rs    `AM_PROGRESS=1` structured stderr event stream (docs/COMMANDS.md)
+  compat.rs      Walnut-compatibility mode: run Walnut command scripts unchanged (docs/WALNUT-COMPAT.md)
+  transducer.rs  finite-state transducers and Dekking-style transduction (docs/BREADTH.md)
+  negbase.rs     negative-base numeration systems, `msd_neg_k` (docs/BREADTH.md)
+  ostrowski.rs   Ostrowski numeration systems from a quadratic irrational (docs/BREADTH.md)
 ```
 
 ## Data flow
