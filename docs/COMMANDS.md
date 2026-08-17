@@ -13,13 +13,16 @@ with `quit` has one appended automatically by `explore/engine.py`.
 
 ## Session model
 
-The engine holds two pieces of mutable state:
+The engine holds three pieces of mutable state:
 
-- `cur : Option<Dfao>` — the *current sequence*, set by `def`. Most commands need
-  one and print `ERR no sequence` if none is set.
+- `cur : Option<Dfao>` — the *current sequence*, set by `def` or `dfao`. Most
+  commands need one and print `ERR no sequence` if none is set.
 - `defs : Defs` — a `HashMap<String, (Vec<String>, Dfa)>` of named predicates bound
   by `let` or `learnfe`, callable from later formulas as `$NAME(args)`. **`def`
   clears `defs`** — a new sequence starts every named predicate over.
+- the active **numeration system** (`numsys`), `None` for built-in base `k`.
+  Switching it clears both of the above, since a base-`k` sequence means nothing
+  under Zeckendorf digits.
 
 ## Commands
 
@@ -35,6 +38,78 @@ OK mode lsd
 > mode msd
 OK mode msd
 ```
+
+### `numsys NAME` / `numsys off` / `numsys`
+
+Switches the session's numeration system to `NAME`, loading its validity and
+addition automata (and an optional comparison automaton) from
+`engine/numeration/`. `off` (or `base`/`none`) returns to built-in base `k`; with
+no argument, reports the current system. Clears the current sequence and all
+`let`/`learnfe` defs. Full design note and file format: `docs/NUMERATION.md`.
+
+Shipped systems: `fib` (Zeckendorf), `trib`, `pell`. The files are Walnut's
+"Custom Bases" text format, so Walnut's own `msd_fib_addition.txt` &c. can be
+dropped in unchanged (`AM_WALNUT_BASES` puts their directory on the search path).
+
+```
+> numsys fib
+OK numsys fib digits=2 valid=3 add=17 lt=lexicographic weights=1,2,3,5,8,13,21,34,...
+> numsys off
+OK numsys base-k (built in)
+```
+
+`valid`/`add` are state counts including the dead state; `lt` is `lexicographic`
+unless a `NAME_less_than.txt` was found; `weights` is `U_l` = the number of valid
+words of length `l` = the value of a leading 1 followed by `l` zeros.
+
+Loading runs a **self-check** and refuses an incoherent system: for `n <= 200`,
+`value(rep(n)) == n`; for `x,y <= 20`, the adder accepts `(x,y,x+y)`, rejects
+`(x,y,x+y+1)`, and the comparison automaton agrees with `<`. Walnut's own
+`msd_fib`, `msd_trib`, `msd_pell`, `msd_pisot4`, `msd_kim` and `msd_nara` pass;
+`msd_neg_fib` is refused (a negative base is not radix-ordered, and values here
+are ranks), as are `msd_tib` and `msd_ns` (different representation convention).
+
+Under a numeration system every automaton the compiler builds is conjoined with
+"each track is a valid representation", and `pow(t)` is refused (the `V_k`
+predicate is a base-`k` notion):
+
+```
+> ? pow(i) & i<10
+ERR pow() is base-k only; no V_k predicate is defined for numeration system "fib" ...
+```
+
+Failure: `ERR numsys no validity automaton for "xyz" (looked for ...)`;
+`ERR numsys <file>: <parse error>`.
+
+### `dfao NAME D o0:t0,t1,.. o1:.. ..`  /  `dfao NAME @file`
+
+Loads an **explicit** DFA-with-output over a `D`-letter digit alphabet as the
+current sequence: state `q` is given as `output:target,target,…` (one target per
+digit, `-` meaning dead), and state 0 is the start state. This is how a sequence
+that is not the fixed point of a `k`-uniform morphism enters the engine — every
+Fibonacci-, Tribonacci- or Pell-automatic word — and it is a convenient way to
+type any automatic sequence directly. `D` must match the active numeration
+system's digit count. Clears all `let`/`learnfe` defs.
+
+`@file` reads a Walnut word-automaton file instead (`Word Automata Library/F.txt`
+loads as-is, number-system header line included).
+
+```
+> numsys fib
+> dfao F 2 0:0,1 1:0,-
+OK dfao F k=2 states=3 lsd_states=4 ns=fib mode=msd
+> seq 20
+SEQ n=20 k=2 01001010010010100101
+```
+
+`explore/morphic_to_dfao.py` prints the `dfao` line for a Pisot substitution
+(Fibonacci `0->01, 1->0`; Tribonacci `0->01, 1->02, 2->0`) by the Dumont–Thomas
+construction, after checking it against the substitution's fixed point on `10^5`
+terms.
+
+Failure: `ERR dfao usage: ...`; `ERR dfao state q: N transitions, expected D`;
+`ERR dfao numeration system fib has 2 digits, got 3`;
+`ERR dfao state 0 must loop on digit 0 (leading zeros must not change the value)`.
 
 ### `def NAME k m start w0 .. w_{m-1} coding`
 
@@ -104,6 +179,44 @@ FEMAP i0=0 j0=0 size=4 l=3 ms=0 rows=1000,0100,0010,0001
 
 Failure: `ERR no sequence`; `ERR usage: fe_map i0 j0 size L` (fewer than 4
 parseable numeric args).
+
+### `pic NAME W H [i0 j0 [scale]]`
+
+A rectangle of the `(i, j)` plane as one line. `NAME` is either a predicate bound by
+`let`/`learnfe` with **exactly two free variables**, or `T`/the sequence's own `def`
+name, in which case the cell is the *output letter* of the addition table `T[i+j]`
+rather than a truth value.
+
+Geometry: `W` is the width in cells (the `j` axis, across), `H` the height (the `i`
+axis, down), `scale` the step in both (default 1). Cell `(r, c)` is the point
+`i = i0 + r*scale`, `j = j0 + c*scale`, and rows are printed `i`-major — `H` rows of
+`W` cells, the same orientation as `fe_map`. `W*H` is capped at `2^20`.
+
+Nothing is constructed: each cell is one run of the already-compiled DFA on the
+two-track base-`k` digit string of the pair in the active digit order (for `T`, one
+walk of the DFAO), so the cost is `W*H*digits` transitions and no extra memory. The
+picture's axes follow the predicate's *declared parameter order*, not the automaton's
+sorted variable order — `pic P` is always `P(i, j)` with the first parameter down.
+
+Each row is either `W` hex digits, or — when that is shorter — a run-length form
+`~<hex><count>.<hex><count>…`; rows are joined with `,`. `vals` is the number of
+distinct cell values the picture can take (2 for a predicate).
+
+```
+> let P(i,j) T[i]=T[j]
+OK let P(i,j) states=2 ms=0
+> pic P 8 8
+PIC 8 8 i0=0 j0=0 scale=1 vals=2 ms=0 rows=10010110,01101001,01101001,10010110,01101001,10010110,10010110,01101001
+> pic T 8 8
+PIC 8 8 i0=0 j0=0 scale=1 vals=2 ms=0 rows=01101001,11010011,10100110,...
+> pic P 8 8 0 0 3
+PIC 8 8 i0=0 j0=0 scale=3 vals=2 ms=0 rows=~17.01,~17.01,...
+```
+
+Failure: `ERR no sequence`; `ERR usage: pic NAME W H [i0 j0 [scale]]`;
+`ERR pic: W and H must be positive`; `ERR pic: N cells exceeds the cap of 1048576`;
+`ERR pic: no such predicate "NAME" (have: T, ...)`;
+`ERR pic: NAME has M free variables [...], need exactly 2`.
 
 ### `? formula` (alias `eval`)
 
@@ -296,6 +409,8 @@ non-negative; arity must match).
 | `AM_DEBUG` | unset | If set, `logic.rs` traces each `exists`/`forall` compilation step (vars, state count) to stderr. |
 | `AM_DEBUG2` | unset | If set, `dfa.rs` traces the determinization-ladder branch taken and resulting state counts to stderr. |
 | `AM_PROGRESS` | unset (0) | If set to a nonempty value other than `0`, the engine emits structured progress events — one JSON object per line — to **stderr** during `?`/`eval`/`let`/`witness`/`enum`/`dfa`/`finite`/`learnfe`: `phase` (compile-stage start, e.g. forward/brzozowski/minimize/learn/verify), `subsets` (subset-construction tick, ~every 50k subsets, with live MB), `states` (an automaton just built), `mem`, `learn` (one per learner equivalence query), and `done` (end of the top-level command, with live/peak MB). stdout is untouched — every existing script's line-protocol parsing keeps working. Cost when off: one relaxed atomic load per call site, no formatting, no allocation, no syscall. |
+| `AM_NUMSYS_DIR` | unset | Extra directory searched first for numeration-system files (`docs/NUMERATION.md`). |
+| `AM_WALNUT_BASES` | unset | Directory searched last — point it at a Walnut checkout's `Custom Bases` to use Walnut's own adders. |
 | `AM_EXPORT_MAX` | 4000 | Max states written by `export` before truncating (`truncated:true`, out-of-range transitions as `-1`). |
 
 The Python runner (`explore/engine.py`) adds its own env vars for process-level

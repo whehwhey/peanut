@@ -1,0 +1,18 @@
+# Tribonacci: digits {0,1}, no factor 111, weights 1,2,4,7,13,24,...
+# Format: Walnut 'Custom Bases' automaton text (alphabet line, then
+# 'state output' blocks with 'digits -> target' transitions).  Walnut's own
+# msd_trib*.txt drop in unchanged; this file was generated and checked by
+# explore/gen_numsys.py (see docs/NUMERATION.md), not copied from Walnut.
+# Valid representations (weights U_l = #words of length l): 1, 2, 4, 7, 13, 24, 44, 81, ...
+{0, 1}
+
+0 1
+0 -> 0
+1 -> 1
+
+1 1
+0 -> 0
+1 -> 2
+
+2 1
+0 -> 0

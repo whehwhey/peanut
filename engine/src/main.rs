@@ -8,12 +8,14 @@
 //! that Python wrapper, never with unguarded parallel instances: several
 //! engines racing on the same machine can exhaust memory and lock it up.
 mod dfa;
+mod numsys;
 mod base;
 mod dfao;
 mod export;
 mod learn;
 mod logic;
 mod membudget;
+mod picture;
 mod progress;
 
 #[global_allocator]
@@ -21,7 +23,59 @@ static GLOBAL: membudget::Budgeted = membudget::Budgeted;
 
 use dfao::Dfao;
 use std::io::{self, BufRead, Write};
+use std::sync::Arc;
 use std::time::Instant;
+
+/// `dfao NAME D o0:t00,t01,.. o1:.. ..`  or  `dfao NAME @path` (Walnut word-automaton
+/// file).  Builds an explicit DFA-with-output over the active digit alphabet: the way
+/// a sequence enters the engine when it is not the fixed point of a k-uniform morphism
+/// (every Fibonacci-, Tribonacci- or Pell-automatic word).  `-` as a transition target
+/// means "dead" (an implicit extra sink state); valid representations never reach it.
+fn parse_dfao(rest: &str) -> Result<Dfao, String> {
+    const USAGE: &str = "usage: dfao NAME D o0:t0,t1,.. ..  |  dfao NAME @file";
+    let rest = rest.trim();
+    let cut = rest.find(char::is_whitespace).ok_or(USAGE)?;
+    let (name, tail) = (&rest[..cut], rest[cut..].trim());
+    // `@path` takes the whole rest of the line, so file names may contain spaces
+    if let Some(path) = tail.strip_prefix('@') {
+        let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {}", path, e))?;
+        let expect = numsys::active().map(|n| n.digits);
+        let p = numsys::parse_walnut(&text, expect)?;
+        if let Some(d) = expect { if p.digits != d {
+            return Err(format!("automaton has {} digits, numeration system has {}", p.digits, d)); } }
+        let (n, trans, out) = p.to_dfao_tables()?;
+        return Dfao::from_tables(p.digits, n, trans, out, name);
+    }
+    let toks: Vec<&str> = tail.split_whitespace().collect();
+    if toks.is_empty() { return Err(USAGE.into()); }
+    let d: usize = toks[0].parse().map_err(|_| "bad digit-alphabet size")?;
+    if d < 2 { return Err("digit alphabet must have at least 2 letters".into()); }
+    if let Some(ns) = numsys::active() {
+        if ns.digits != d {
+            return Err(format!("numeration system {} has {} digits, got {}", ns.name, ns.digits, d));
+        }
+    }
+    let rows = &toks[1..];
+    if rows.is_empty() { return Err("no states given".into()); }
+    let n = rows.len();
+    let dead = n as u32;                 // implicit sink, appended below
+    let mut trans = vec![dead; (n + 1) * d];
+    let mut out = vec![0u8; n + 1];
+    for (q, row) in rows.iter().enumerate() {
+        let (o, ts) = row.split_once(':').ok_or_else(|| format!("state {}: expected out:t0,t1,..", q))?;
+        out[q] = o.parse::<u8>().map_err(|_| format!("state {}: bad output {:?}", q, o))?;
+        let parts: Vec<&str> = ts.split(',').collect();
+        if parts.len() != d { return Err(format!("state {}: {} transitions, expected {}", q, parts.len(), d)); }
+        for (dg, t) in parts.iter().enumerate() {
+            if *t == "-" { continue; }
+            let tt: usize = t.parse().map_err(|_| format!("state {}: bad target {:?}", q, t))?;
+            if tt >= n { return Err(format!("state {}: target {} >= {} states", q, tt, n)); }
+            trans[q * d + dg] = tt as u32;
+        }
+    }
+    for dg in 0..d { trans[n * d + dg] = dead; }
+    Dfao::from_tables(d, n + 1, trans, out, name)
+}
 
 fn parse_def(parts: &[&str]) -> Result<Dfao, String> {
     // def <name> <k> <m> <start> <w0> .. <w_{m-1}> <coding>
@@ -74,6 +128,47 @@ fn main() {
                 let lsd = rest.trim() == "lsd";
                 dfa::set_lsd(lsd);
                 println!("OK mode {}", if lsd { "lsd" } else { "msd" });
+            }
+            "numsys" => {
+                // numsys NAME | numsys off  -- switch the session's numeration system.
+                let arg = rest.split_whitespace().next().unwrap_or("");
+                if arg.is_empty() {
+                    match numsys::active() {
+                        None => println!("OK numsys base-k (built in)"),
+                        Some(n) => println!("OK numsys {} digits={} valid={} add={} lt={}",
+                                            n.name, n.digits, n.valid_msd.nstates, n.add_msd.nstates,
+                                            if n.lt_loaded { "loaded" } else { "lexicographic" }),
+                    }
+                } else if arg == "off" || arg == "base" || arg == "none" {
+                    numsys::set_active(None);
+                    cur = None; defs.clear();
+                    println!("OK numsys base-k (built in)");
+                } else {
+                    match numsys::load(arg) {
+                        Ok(n) => {
+                            let w: Vec<String> = (0..8).map(|l| n.weight(l).to_string()).collect();
+                            println!("OK numsys {} digits={} valid={} add={} lt={} weights={},...",
+                                     n.name, n.digits, n.valid_msd.nstates, n.add_msd.nstates,
+                                     if n.lt_loaded { "loaded" } else { "lexicographic" }, w.join(","));
+                            numsys::set_active(Some(Arc::new(n)));
+                            cur = None; defs.clear();
+                        }
+                        Err(e) => println!("ERR numsys {}", e),
+                    }
+                }
+            }
+            "dfao" => {
+                match parse_dfao(rest) {
+                    Ok(d) => {
+                        println!("OK dfao {} k={} states={} lsd_states={} ns={} mode={}",
+                                 d.name, d.k, d.nstates, d.lnstates,
+                                 if numsys::active().is_some() { numsys::active_name() } else { "base".into() },
+                                 if dfa::is_lsd() { "lsd" } else { "msd" });
+                        defs.clear();
+                        cur = Some(d);
+                    }
+                    Err(e) => println!("ERR dfao {}", e),
+                }
             }
             "def" => {
                 let parts: Vec<&str> = rest.split_whitespace().collect();
@@ -135,6 +230,7 @@ fn main() {
                 println!("FEMAP i0={} j0={} size={} l={} ms={} rows={}",
                          i0, j0, size, l, t0.elapsed().as_millis(), rows.join(","));
             }
+            "pic" => println!("{}", picture::cmd(cur.as_ref(), &defs, rest)),
             "?" | "eval" => {
                 let Some(d) = &cur else { println!("ERR no sequence"); continue };
                 let t0 = Instant::now();
@@ -212,26 +308,13 @@ steps={} peak={} ms={}{}",
                     Ok(a) => {
                         let n = a.vars.len();
                         if n == 0 { println!("CLOSED {}", if a.accepts_epsilon() { "TRUE" } else { "FALSE" }); continue; }
-                        // common word length
-                        let mut len = 1usize; let mut cap = d.k as u64;
-                        while cap < b { cap *= d.k as u64; len += 1; }
                         let mut acc: Vec<String> = Vec::new();
                         let total = b.pow(n as u32);
                         for code in 0..total {
                             let mut vals = vec![0u64; n];
                             let mut c = code;
                             for i in 0..n { vals[i] = c % b; c /= b; }
-                            // build msd word
-                            let mut word = vec![0usize; len];
-                            for pos in 0..len {
-                                let place = if dfa::is_lsd() { pos } else { len - 1 - pos };
-                                let mut sym = 0usize; let mut mult = 1usize;
-                                for i in 0..n {
-                                    let dig = (vals[i] / (d.k as u64).pow(place as u32)) % d.k as u64;
-                                    sym += dig as usize * mult; mult *= d.k;
-                                }
-                                word[pos] = sym;
-                            }
+                            let word = numsys::encode_word(d.k, &vals);
                             if a.run(&word) { acc.push(vals.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(",")); }
                         }
                         println!("ENUM vars=[{}] n={} {}", a.vars.join(","), acc.len(), acc.join(" "));
@@ -263,6 +346,7 @@ steps={} peak={} ms={}{}",
                 let params: Vec<String> = rest[op+1..cp].split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
                 let body = rest[cp+1..].trim();
                 let t0 = Instant::now();
+                dfa::peak_reset();
                 match logic::compile_str(d.k, d, &defs, body) {
                     Ok(a) => {
                         let missing: Vec<&String> = params.iter().filter(|p| !a.vars.contains(p)).collect();
@@ -270,13 +354,14 @@ steps={} peak={} ms={}{}",
                         let mut vars = a.vars.clone();
                         for p in &missing { vars.push((*p).clone()); }
                         vars.sort();
-                        let a2 = a.extend_vars(&vars);
+                        let a2 = numsys::restrict(&a.extend_vars(&vars));
                         let extra: Vec<String> = a2.vars.iter().filter(|v| !params.contains(v)).cloned().collect();
                         if !extra.is_empty() {
                             println!("ERR ${} body has unbound variables {:?} not in the parameter list", name, extra);
                             continue;
                         }
-                        println!("OK let {}({}) states={} ms={}", name, params.join(","), a2.nstates, t0.elapsed().as_millis());
+                        println!("OK let {}({}) states={} peak={} ms={}", name, params.join(","),
+                                 a2.nstates, dfa::peak_get(), t0.elapsed().as_millis());
                         defs.insert(name, (params, a2));
                     }
                     Err(e) => println!("ERR {}", e),

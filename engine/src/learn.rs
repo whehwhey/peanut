@@ -94,6 +94,8 @@
 
 use crate::dfa::{self, Dfa, FxMap};
 use crate::dfao::Dfao;
+use crate::numsys::{self, NumSys};
+use std::sync::Arc;
 use crate::logic::{compile_str, Defs};
 use std::time::Instant;
 
@@ -106,75 +108,62 @@ fn ndigits(mut v: u64, k: u64) -> usize {
     n
 }
 
-/// Encode a tuple of values as a word over the product alphabet, in the ACTIVE digit
-/// order, using the shortest common length.  Coordinate c of a symbol carries the
-/// digit of vals[c], matching `dfa::digit` and the sorted variable order.
-pub fn encode(k: usize, vals: &[u64]) -> Vec<usize> {
-    let len = vals.iter().map(|&v| ndigits(v, k as u64)).max().unwrap_or(1).max(1);
-    let mut w = vec![0usize; len];
-    for pos in 0..len {
-        // `place` = which power of k this word position carries
-        let place = if dfa::is_lsd() { pos } else { len - 1 - pos };
-        let mut sym = 0usize;
-        let mut mult = 1usize;
-        for &v in vals {
-            let d = (v / (k as u64).pow(place as u32)) % k as u64;
-            sym += d as usize * mult;
-            mult *= k;
-        }
-        w[pos] = sym;
-    }
-    w
-}
+/// Encode a tuple of values as a word over the product alphabet, in the ACTIVE
+/// digit order and numeration system (see [`crate::numsys::encode_word`]).
+pub fn encode(k: usize, vals: &[u64]) -> Vec<usize> { numsys::encode_word(k, vals) }
 
-/// Inverse of `encode`.  Returns None if the word denotes a value beyond u64.
-pub fn decode(k: usize, n: usize, w: &[usize]) -> Option<Vec<u64>> {
-    // strip padding (an all-zero symbol at the padding end never changes the values)
-    let mut w = w;
-    if dfa::is_lsd() { while w.last() == Some(&0) { w = &w[..w.len() - 1]; } }
-    else { while w.first() == Some(&0) { w = &w[1..]; } }
-    let mut v = vec![0u64; n];
-    if dfa::is_lsd() {
-        let mut place = 1u64;
-        for (p, &s) in w.iter().enumerate() {
-            for c in 0..n {
-                let d = dfa::digit(s, c, k) as u64;
-                if d != 0 { v[c] = v[c].checked_add(d.checked_mul(place)?)?; }
-            }
-            if p + 1 < w.len() { place = place.checked_mul(k as u64)?; }
-        }
-    } else {
-        for &s in w.iter() {
-            for c in 0..n {
-                v[c] = v[c].checked_mul(k as u64)?.checked_add(dfa::digit(s, c, k) as u64)?;
-            }
-        }
-    }
-    Some(v)
-}
+/// Inverse of `encode`.  `None` if the word is not a tuple of valid
+/// representations, or denotes a value beyond u64.
+pub fn decode(k: usize, n: usize, w: &[usize]) -> Option<Vec<u64>> { numsys::decode_word(k, n, w) }
 
 // ------------------------------------------------------------------ oracle
 
-/// A base-k counter that carries the DFAO state along its msd digit path, so that
-/// stepping n -> n+1 costs O(1) amortised instead of O(log n).
+/// A counter that carries the DFAO state along its msd digit path, so that
+/// stepping `n -> n+1` costs O(1) amortised instead of O(log n).
+///
+/// Two modes.  Without a numeration system the digits are plain base-k and the
+/// successor is the schoolbook carry (`inc_base`).  With one, the digits are the
+/// canonical representation and the successor is "the next word of this width in
+/// the validity language" (`inc_ns`), found from the counting table -- the same
+/// rank/unrank machinery that defines the value of a word in the first place.
+/// The two are separate methods, and `walk` picks one *outside* its loop: this is
+/// the hottest loop in the engine and a per-step branch on the numeration system
+/// costs it ~1.8x.
 struct Counter<'a> {
     d: &'a Dfao,
     digits: Vec<u8>,     // msd-first, fixed width, leading zeros allowed
-    st: Vec<u32>,        // st[p] = state after digits[0..p]; st[0] = 0
+    st: Vec<u32>,        // st[p] = DFAO state after digits[0..p]; st[0] = 0
+    vst: Vec<u32>,       // validity states, only used in numeration-system mode
+    dg: Vec<usize>,      // scratch for inc_ns, kept allocated
 }
 
 impl<'a> Counter<'a> {
-    fn new(d: &'a Dfao, n: u64, width: usize) -> Counter<'a> {
-        let k = d.k as u64;
+    fn new(d: &'a Dfao, n: u64, width: usize, ns: Option<&NumSys>) -> Counter<'a> {
         let mut digits = vec![0u8; width];
-        let mut v = n;
-        for p in (0..width).rev() { digits[p] = (v % k) as u8; v /= k; }
+        match ns {
+            None => {
+                let k = d.k as u64;
+                let mut v = n;
+                for p in (0..width).rev() { digits[p] = (v % k) as u8; v /= k; }
+            }
+            Some(nsy) => {
+                let r = nsy.rep(n);
+                let off = width - r.len();
+                for (i, &dg) in r.iter().enumerate() { digits[off + i] = dg as u8; }
+            }
+        }
         let mut st = vec![0u32; width + 1];
         for p in 0..width { st[p + 1] = d.t(st[p] as usize, digits[p] as usize) as u32; }
-        Counter { d, digits, st }
+        let dg: Vec<usize> = digits.iter().map(|&x| x as usize).collect();
+        let vst = match ns { None => Vec::new(), Some(nsy) => nsy.vstates(&dg) };
+        Counter { d, digits, st, vst, dg }
     }
-    #[inline] fn out(&self) -> u8 { self.d.out[*self.st.last().unwrap() as usize] }
-    #[inline] fn inc(&mut self) {
+    #[inline(always)] fn out(&self) -> u8 { self.d.out[*self.st.last().unwrap() as usize] }
+    #[inline(always)] fn resync(&mut self, p: usize) {
+        let w = self.digits.len();
+        for q in p..w { self.st[q + 1] = self.d.t(self.st[q] as usize, self.digits[q] as usize) as u32; }
+    }
+    #[inline(always)] fn inc_base(&mut self) {
         let k = self.d.k as u8;
         let w = self.digits.len();
         let mut p = w - 1;
@@ -184,7 +173,13 @@ impl<'a> Counter<'a> {
             if p == 0 { break; }          // width was chosen so this cannot matter
             p -= 1;
         }
-        for q in p..w { self.st[q + 1] = self.d.t(self.st[q] as usize, self.digits[q] as usize) as u32; }
+        self.resync(p);
+    }
+    #[inline(always)] fn inc_ns(&mut self, ns: &NumSys) {
+        let w = self.digits.len();
+        let p = ns.succ(&mut self.dg, &mut self.vst).unwrap_or(0);
+        for i in p..w { self.digits[i] = self.dg[i] as u8; }
+        self.resync(p);
     }
 }
 
@@ -215,13 +210,27 @@ impl<'a> Oracle<'a> {
     fn walk(&mut self, i: u64, j: u64, cap: u64) -> u64 {
         if i == j || cap == 0 { return cap; }
         let hi = i.max(j).saturating_add(cap);
-        let width = ndigits(hi, self.k as u64);
-        let mut a = Counter::new(self.d, i, width);
-        let mut b = Counter::new(self.d, j, width);
+        let ns = numsys::active();
+        let width = match &ns {
+            Some(n) => n.replen(hi),
+            None => ndigits(hi, self.k as u64),
+        };
+        let mut a = Counter::new(self.d, i, width, ns.as_deref());
+        let mut b = Counter::new(self.d, j, width, ns.as_deref());
         let mut t = 0u64;
-        while t < cap {
-            if a.out() != b.out() { self.steps += t; return t; }
-            a.inc(); b.inc(); t += 1;
+        match &ns {
+            None => {
+                while t < cap {
+                    if a.out() != b.out() { self.steps += t; return t; }
+                    a.inc_base(); b.inc_base(); t += 1;
+                }
+            }
+            Some(n) => {
+                while t < cap {
+                    if a.out() != b.out() { self.steps += t; return t; }
+                    a.inc_ns(n); b.inc_ns(n); t += 1;
+                }
+            }
         }
         self.steps += cap;
         cap
@@ -416,8 +425,13 @@ impl<'a> Learner<'a> {
     }
 
     fn to_dfa(&self) -> Dfa {
-        Dfa::new(self.k, vec!["i".into(), "j".into(), "l".into()],
-                 self.nstates(), self.trans.clone(), self.accept.clone()).minimize()
+        // The oracle answers "not a member" for any word that is not a triple of
+        // valid representations, so the learned automaton already rejects them;
+        // the restriction is a cheap belt-and-braces on states the learner never
+        // had to separate.
+        let d = Dfa::new(self.k, vec!["i".into(), "j".into(), "l".into()],
+                 self.nstates(), self.trans.clone(), self.accept.clone()).minimize();
+        numsys::restrict(&d).minimize()
     }
 }
 

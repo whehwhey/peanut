@@ -494,6 +494,10 @@ impl<'a> Compiler<'a> {
                 d
             }
             Ast::IsPow(t) => {
+                if let Some(ns) = crate::numsys::active() {
+                    return Err(format!("pow() is base-k only; no V_k predicate is defined for \
+numeration system {:?} (drop `numsys` to go back to base k)", ns.name));
+                }
                 let (p, n) = t.split();
                 if !(n.c == 0 && n.coef.is_empty()) { return Err("negative argument to pow".into()); }
                 let (aut, v, fresh) = self.lin_auto(&p)?;

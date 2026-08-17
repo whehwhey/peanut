@@ -259,8 +259,12 @@ canvas.tape-canvas:active { cursor: grabbing; }
 .row.tight { gap: 6px; }
 .spacer { flex: 1 1 auto; }
 
-label.field { display: flex; flex-direction: column; gap: 4px; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+label.field { display: flex; flex-direction: column; gap: 4px; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); min-width: 0; }
 label.field input, label.field select { text-transform: none; letter-spacing: 0; }
+/* a <select> is as wide as its longest option unless told otherwise, and one option here
+   is a sentence -- without this the shape menu drags the whole row past a phone's width */
+label.field input, label.field select { min-width: 0; max-width: 100%; }
+label.field select, label.field option { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ------------------------------------------------------------- playground */
 
@@ -338,8 +342,32 @@ canvas.heat { display: block; width: 100%; height: min(58vh, 520px); touch-actio
 }
 .phasebar div.on { background: var(--indigo); border-color: var(--indigo); }
 .phasebar div.done { background: var(--green); border-color: var(--green); }
+/* a phase the ladder never needed is not "not yet" -- it is "not required", so it is
+   drawn hollow and dashed rather than as a pending grey slot */
+.phasebar div.skip { background: none; border-style: dashed; border-color: var(--rule); }
 .phaselabels { display: flex; gap: 4px; }
-.phaselabels span { flex: 1; font-family: var(--mono); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+/* `brzozowski` is wider than a sixth of a phone, and a label must never be the thing
+   that makes the page scroll: the bar is the signal, the word is the caption */
+.phaselabels span {
+  flex: 1 1 0; min-width: 0;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-family: var(--mono); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3);
+}
+.phaselabels span.skip { opacity: .45; text-decoration: line-through; }
+.phaselabels span.done { color: var(--green); }
+.phaselabels span.on { color: var(--indigo); }
+
+.chip {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .08em;
+  border-radius: 999px; padding: 2px 10px;
+  border: 1px solid var(--rule); color: var(--ink-2); background: var(--panel);
+  white-space: nowrap;
+}
+.chip[hidden] { display: none; }
+.chip.true  { border-color: var(--green); color: var(--green); background: var(--green-2); }
+.chip.false { border-color: var(--indigo); color: var(--indigo); background: var(--indigo-2); }
+.chip.err   { border-color: var(--rust); color: var(--rust); background: var(--rust-2); }
+.chip.done  { border-color: var(--rule); color: var(--ink-2); }
 
 .counters { display: grid; grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)); gap: 8px; margin-top: 10px; }
 .counter { border: 1px solid var(--rule-soft); border-radius: var(--r-s); padding: 7px 9px; background: var(--panel); }
@@ -370,6 +398,37 @@ canvas.heat { display: block; width: 100%; height: min(58vh, 520px); touch-actio
   .mascot.react svg { animation: none; }
   .gauge i { transition: none; }
 }
+
+/* ------------------------------------------------------------- shapes */
+
+/* a segmented control, not a second rail: the three shapes are one view's modes */
+.seg { display: flex; gap: 4px; margin-bottom: 10px; overflow-x: auto; scrollbar-width: none; }
+.seg::-webkit-scrollbar { display: none; }
+.seg button {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .06em;
+  border: 1px solid var(--rule); background: var(--panel); color: var(--ink-2);
+  border-radius: 999px; padding: 6px 14px; cursor: pointer; white-space: nowrap;
+}
+.seg button[aria-selected="true"] { background: var(--indigo-2); border-color: var(--indigo); color: var(--ink); }
+
+.shape-pane { display: none; }
+.shape-pane.on { display: block; }
+
+/* a picture is square, so the box is square: aspect-ratio keeps the canvas exactly as
+   tall as the grid it holds instead of leaving dead space above and below it */
+canvas.pic {
+  display: block; width: 100%; aspect-ratio: 1 / 1; max-height: min(70vh, 620px);
+  touch-action: none; cursor: crosshair;
+}
+#turCanvas { cursor: default; }
+
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
+.swatch { display: inline-flex; align-items: center; gap: 5px; }
+.swatch i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; border: 1px solid var(--rule); }
+
+.angles { display: flex; gap: 8px; flex-wrap: wrap; }
+.angles label { display: flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
+.angles input { width: 72px; }
 
 /* ------------------------------------------------------------- morphism */
 
@@ -420,6 +479,8 @@ table.batt td.v-err { color: var(--rust); }
   .body { grid-template-columns: 1fr; }
   .rail {
     order: 2;
+    align-self: end;              /* hug the tabs: a short page must not grow the bar */
+    align-items: center;
     position: sticky; bottom: 0; z-index: 25;
     flex-direction: row; overflow-x: auto;
     border-right: none; border-top: 1px solid var(--rule);
@@ -437,6 +498,12 @@ table.batt td.v-err { color: var(--rust); }
   .grid2 { grid-template-columns: 1fr; }
   .brand .tagline { display: none; }
   .seqpick { width: 100%; margin-left: 0; }
-  select { max-width: 100%; flex: 1 1 160px; }
+  /* `flex: 1 1 160px` on every select was a phone-only bug: inside a column `label.field`
+     the basis lands on the *main* axis, so a select 160px TALL.  Only the header's row of
+     pickers wants to grow. */
+  select { max-width: 100%; }
+  .seqpick select { flex: 1 1 160px; }
   canvas.stage { height: 54vh; }
+  canvas.pic { max-height: 62vh; }
+  .seg button { padding: 6px 11px; }
 }

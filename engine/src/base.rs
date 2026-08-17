@@ -1,6 +1,23 @@
 //! Arithmetic automata for base-k Presburger arithmetic (msd-first).
+//!
+//! Every constructor here first asks [`crate::numsys::active`] whether a
+//! non-standard numeration system is in force.  If one is, the adder and the
+//! comparison come from that system's automata (loaded from file) and every
+//! result is conjoined with "each track is a valid representation"; if none is,
+//! the built-in base-`k` fast paths below are used unchanged.
 
 use crate::dfa::{Dfa, State, is_lsd};
+use crate::numsys;
+
+/// Attach `names` (in coordinate order) to a nameless automaton and permute the
+/// coordinates into sorted order, which is the invariant every `Dfa` keeps.
+fn named(d: &Dfa, names: &[&str]) -> Dfa {
+    let mut out = Dfa { vars: names.iter().map(|s| s.to_string()).collect(), ..d.clone() };
+    let mut sorted: Vec<String> = out.vars.clone();
+    sorted.sort();
+    if sorted != out.vars { out = out.extend_vars(&sorted); }
+    out
+}
 
 /// LSD-first adder over (x,y,z): x + y = z.  States: 0 = carry 0, 1 = carry 1, 2 = dead.
 fn adder_lsd(k: usize, vars: Vec<String>) -> Dfa {
@@ -23,6 +40,9 @@ fn adder_lsd(k: usize, vars: Vec<String>) -> Dfa {
 
 /// MSD-first x + y = z.
 pub fn adder(k: usize, x: &str, y: &str, z: &str) -> Dfa {
+    if let Some(ns) = numsys::active() {
+        return ns.restrict(&named(ns.add(), &[x, y, z])).minimize();
+    }
     let mut vars = vec![x.to_string(), y.to_string(), z.to_string()];
     // adder_lsd encodes coordinate order (x,y,z); build with placeholder names then rename.
     let names: Vec<String> = vec!["\u{1}a".into(), "\u{1}b".into(), "\u{1}c".into()];
@@ -38,6 +58,9 @@ pub fn adder(k: usize, x: &str, y: &str, z: &str) -> Dfa {
 
 /// MSD-first x < y (leading zeros allowed on both).
 pub fn less_than(k: usize, x: &str, y: &str) -> Dfa {
+    if let Some(ns) = numsys::active() {
+        return ns.restrict(&named(ns.lt(), &[x, y])).minimize();
+    }
     // msd: the FIRST differing digit decides, so the verdict is absorbing.
     // lsd: the LAST (most significant) differing digit decides, so each new
     //      differing digit overrides the running verdict.
@@ -62,7 +85,19 @@ pub fn less_than(k: usize, x: &str, y: &str) -> Dfa {
 }
 
 /// MSD-first x = y.
+///
+/// Digit-string equality.  Under a numeration system this is still exactly
+/// numeric equality, because canonical representations are unique once both
+/// tracks are known valid -- which is what the `restrict` below enforces.
 pub fn equal(k: usize, x: &str, y: &str) -> Dfa {
+    if let Some(ns) = numsys::active() {
+        let d = digit_equal(ns.digits, x, y);
+        return ns.restrict(&d).minimize();
+    }
+    digit_equal(k, x, y)
+}
+
+fn digit_equal(k: usize, x: &str, y: &str) -> Dfa {
     let alpha = k * k;
     let mut trans = vec![1u32; 2 * alpha];
     for a in 0..k {
@@ -93,6 +128,36 @@ pub const MAX_CONSTANT: u64 = 1_000_000_000_000; // 10^12
 pub fn constant(k: usize, x: &str, c: u64) -> Result<Dfa, String> {
     if c > MAX_CONSTANT {
         return Err(format!("constant too large (max {})", MAX_CONSTANT));
+    }
+    if let Some(ns) = numsys::active() {
+        // The canonical representation of c, padded with zeros at the padding end.
+        // No validity conjunction is needed: the language is the single valid word.
+        let rep = ns.rep(c);            // msd-first, no leading zeros
+        let d = ns.digits;
+        let len = rep.len();
+        let n = len + 2;
+        let dead = (len + 1) as State;
+        let mut trans = vec![dead; n * d];
+        let mut accept = vec![false; n];
+        if is_lsd() {
+            for p in 0..len {
+                let dig = rep[len - 1 - p];       // lsd-first
+                trans[p * d + dig] = (p + 1) as State;
+            }
+            trans[len * d] = len as State;        // trailing zero padding
+            accept[len] = true;
+        } else {
+            trans[0] = 0;                          // leading zero padding
+            for p in 0..len { trans[p * d + rep[p]] = (p + 1) as State; }
+            accept[len] = true;
+        }
+        // c = 0 is represented by the empty word: 0* only.
+        if c == 0 {
+            let mut t = vec![1 as State; 2 * d];
+            t[0] = 0;
+            return Ok(Dfa::new(d, vec![x.to_string()], 2, t, vec![true, false]).minimize());
+        }
+        return Ok(Dfa::new(d, vec![x.to_string()], n, trans, accept).minimize());
     }
     // lsd-first digits of c (ds[0] is the least significant digit).
     let mut ds: Vec<usize> = Vec::new();

@@ -1,6 +1,7 @@
 //! Deterministic finite automata with output: the k-automatic sequences themselves.
 
 use crate::dfa::{Dfa, State, is_lsd};
+use crate::numsys;
 
 /// A DFA-with-output: a base-`k` automatic sequence `T`, defined by an
 /// automaton over single digits whose state reached by reading `n`'s digits
@@ -43,6 +44,21 @@ impl Dfao {
         Ok(Dfao { k, nstates: m, trans, out, name: name.to_string(), lnstates, ltrans, lout })
     }
 
+    /// Build directly from an explicit msd transition table (`nstates * k`) and
+    /// per-state outputs -- the `dfao` command, and the way a sequence over a
+    /// non-uniform numeration system (Fibonacci, Tribonacci, ...) enters the
+    /// engine, since it is not the fixed point of a k-uniform morphism.
+    pub fn from_tables(k: usize, nstates: usize, trans: Vec<State>, out: Vec<u8>, name: &str) -> Result<Dfao, String> {
+        if trans.len() != nstates * k { return Err(format!("expected {} transitions, got {}", nstates * k, trans.len())); }
+        if out.len() != nstates { return Err(format!("expected {} outputs, got {}", nstates, out.len())); }
+        if let Some(&bad) = trans.iter().find(|&&t| t as usize >= nstates) {
+            return Err(format!("transition target {} >= nstates {}", bad, nstates));
+        }
+        if trans[0] != 0 { return Err("state 0 must loop on digit 0 (leading zeros must not change the value)".into()); }
+        let (lnstates, ltrans, lout) = build_lsd(k, nstates, &trans, &out)?;
+        Ok(Dfao { k, nstates, trans, out, name: name.to_string(), lnstates, ltrans, lout })
+    }
+
     /// Active transition table / outputs for the current digit order.
     pub fn active(&self) -> (usize, &Vec<State>, &Vec<u8>) {
         if is_lsd() { (self.lnstates, &self.ltrans, &self.lout) }
@@ -52,13 +68,20 @@ impl Dfao {
     #[inline]
     pub fn t(&self, s: usize, d: usize) -> usize { self.trans[s * self.k + d] as usize }
 
-    /// The n-th term of the sequence.
+    /// The n-th term of the sequence.  Always evaluated on the msd automaton,
+    /// reading `n`'s canonical representation in the active numeration system
+    /// (plain base-k digits when none is active).
     pub fn at(&self, n: u64) -> u8 {
         if n == 0 { return self.out[0]; }
-        let mut digits = Vec::new();
-        let mut m = n;
-        while m > 0 { digits.push((m % self.k as u64) as usize); m /= self.k as u64; }
-        digits.reverse();
+        let digits: Vec<usize> = match numsys::active() {
+            Some(ns) => ns.rep(n),
+            None => {
+                let mut d = Vec::new();
+                let mut m = n;
+                while m > 0 { d.push((m % self.k as u64) as usize); m /= self.k as u64; }
+                d.reverse(); d
+            }
+        };
         let mut s = 0usize;
         for d in digits { s = self.t(s, d); }
         self.out[s]
@@ -88,7 +111,8 @@ impl Dfao {
         assert!(self.zero_stable());
         let (n, tr, out) = self.active();
         let accept = out.iter().map(|&o| o == a).collect();
-        Dfa::new(self.k, vec![x.to_string()], n, tr.clone(), accept).minimize()
+        let d = Dfa::new(self.k, vec![x.to_string()], n, tr.clone(), accept).minimize();
+        numsys::restrict(&d).minimize()
     }
 
     /// DFA over sorted [x,y] accepting (i,j) with T[i] = T[j].
@@ -114,7 +138,7 @@ impl Dfao {
         let mut out = Dfa { vars: vec![x.into(), y.into()], ..d };
         vars.sort();
         if vars != out.vars { out = out.extend_vars(&vars); }
-        out.minimize()
+        numsys::restrict(&out).minimize()
     }
 }
 
@@ -128,9 +152,13 @@ impl Dfao {
 /// minimisation collapses it.
 fn build_lsd(k: usize, m: usize, trans: &[State], out: &[u8]) -> Result<(usize, Vec<State>, Vec<u8>), String> {
     use std::collections::HashMap;
-    let id: Vec<u8> = (0..m as u8).collect();
-    let mut index: HashMap<Vec<u8>, usize> = HashMap::new();
-    let mut order: Vec<Vec<u8>> = Vec::new();
+    // The transformation g : Q -> Q is stored as a Vec<State>, not Vec<u8>: `m` is a
+    // state count and routinely exceeds 255 for a DFAO loaded with `dfao` (before
+    // 2026-08-17 this was `(0..m as u8)`, which silently truncated m mod 256 and then
+    // panicked with an out-of-bounds index on any sequence with >= 256 states).
+    let id: Vec<State> = (0..m as State).collect();
+    let mut index: HashMap<Vec<State>, usize> = HashMap::new();
+    let mut order: Vec<Vec<State>> = Vec::new();
     index.insert(id.clone(), 0);
     order.push(id);
     let mut lt: Vec<State> = Vec::new();
@@ -138,7 +166,7 @@ fn build_lsd(k: usize, m: usize, trans: &[State], out: &[u8]) -> Result<(usize, 
     while i < order.len() {
         let g = order[i].clone();
         for d in 0..k {
-            let ng: Vec<u8> = (0..m).map(|q| g[trans[q * k + d] as usize]).collect();
+            let ng: Vec<State> = (0..m).map(|q| g[trans[q * k + d] as usize]).collect();
             let id_ = match index.get(&ng) {
                 Some(&x) => x,
                 None => { let x = order.len(); index.insert(ng.clone(), x); order.push(ng); x }

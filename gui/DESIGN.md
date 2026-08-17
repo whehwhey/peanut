@@ -89,8 +89,22 @@ an eight-letter output alphabet stays legible in greyscale too.
 **Structure devices.** No 01 / 02 / 03 numbering: the views are a workbench, not a
 sequence. What each view header carries instead is the engine command it drives —
 `seq N`, `export`, `? · let · witness · enum · finite · learnfe`, `fe_map`,
-`def T k m start …`, `AM_PROGRESS=1`. That is a true statement about the view and it
-teaches the command language for free.
+`pic · seq`, `def T k m start …`, `AM_PROGRESS=1`. That is a true statement about the
+view and it teaches the command language for free.
+
+**Pictures use the same palette as everything else.** A Shapes bitmap is `--indigo` on
+`--panel-2` when the predicate is a truth value — structure hue, because a picture of a
+predicate is a picture of the same thing the verdict chip reports — and the eight-hue
+symbol walk when the cells are output letters, so a tile on the tape and a cell in the
+square are the same colour for the same letter. The trivial diagonal is drawn in the
+attention hue at half alpha, the same role it plays in the FE heatmap.
+
+**A finished job is a state.** The Live view's phase bar distinguishes four things, not
+two: running (structure fill), complete (assent fill), *not needed* (hollow, dashed) and
+not started (grey). The determinization ladder skips rungs by design — that is the whole
+point of it — so a skipped phase must not read as one still to come. When the job ends
+the stop button is replaced in place by `Done in X s`, next to a verdict chip in the
+verdict's own colour: TRUE assent, FALSE structure, an error or a budget kill in fault.
 
 ## The mascot
 
@@ -103,7 +117,12 @@ two-circle outline shell and says nothing about it; the app must not depend on a
 
 The mascot reacts only in the Live view, and only on a settled result: happy on TRUE,
 oops on FALSE or a failed run, thinking while a job is in flight. One 500 ms bob,
-suppressed under `prefers-reduced-motion`. That is the only animation in the interface.
+suppressed under `prefers-reduced-motion`.
+
+That and the turtle are the only animations in the interface. The turtle earns it: the
+order in which a curve is drawn *is* the sequence, so watching the path grow is reading
+the sequence, not decoration — and it too collapses to a single frame under
+`prefers-reduced-motion`.
 
 ## Quality floor
 

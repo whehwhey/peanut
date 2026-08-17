@@ -166,6 +166,120 @@
         <p class="eyebrow" style="margin-top:8px">drag to move the window · wheel to zoom · click a cell to compare the two factors</p>
       </section>
 
+      <!-- ------------------------------------------------ shapes -->
+      <section class="view" id="view-shapes">
+        <div class="view-head">
+          <h2>Shapes</h2><span class="cmd">pic · seq</span>
+          <p>Three pictures of the same object: a two-variable predicate over the (i, j) plane,
+             the sequence walked as a turtle path, and the sequence folded into a square. Every
+             cell of a picture is one run of the predicate's automaton — nothing new is built.</p>
+        </div>
+
+        <div class="seg" id="shapeTabs" role="tablist" aria-label="Shape kind">
+          <button role="tab" data-tab="picture" aria-selected="true">Predicate picture</button>
+          <button role="tab" data-tab="turtle" aria-selected="false">Turtle</button>
+          <button role="tab" data-tab="square" aria-selected="false">Square</button>
+        </div>
+
+        <!-- (a) predicate pictures -->
+        <div class="shape-pane on" id="shape-picture">
+          <div class="panel">
+            <div class="row">
+              <label class="field" style="flex:1 1 220px">shape
+                <select id="picShape" aria-label="Picture"></select>
+              </label>
+              <label class="field">cells
+                <input type="number" id="picN" value="128" min="8" max="1024" step="8" style="width:82px">
+              </label>
+              <label class="field">i from <input type="number" id="picI0" value="0" min="0" style="width:88px"></label>
+              <label class="field">j from <input type="number" id="picJ0" value="0" min="0" style="width:88px"></label>
+              <label class="field">step <input type="number" id="picScale" value="1" min="1" max="4096" style="width:70px"></label>
+              <button class="btn primary" id="picRun">Draw</button>
+              <button class="btn ghost" id="picHome">Reset view</button>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <label class="field" style="flex:1 1 100%">P(i, j) ≡
+                <input type="text" id="picBody" value="T[i]=T[j]" spellcheck="false">
+              </label>
+            </div>
+            <details id="picSetupBox" style="margin-top:6px">
+              <summary class="eyebrow" style="cursor:pointer">setup lines (run before the picture)</summary>
+              <textarea class="editor" id="picPre" spellcheck="false" style="min-height:64px;margin-top:6px"></textarea>
+              <p class="eyebrow" id="picDefNote" style="margin:6px 0 0;text-transform:none;letter-spacing:0"></p>
+            </details>
+          </div>
+          <div class="canvas-frame" style="margin-top:10px">
+            <canvas class="pic" id="picCanvas" aria-label="Predicate picture"></canvas>
+            <div class="tip" id="picTip"></div>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <span class="pill" id="picInfo">—</span>
+            <span class="swatches" id="picSwatch"></span>
+            <span class="spacer"></span>
+            <span class="eyebrow">drag to pan · wheel or pinch to zoom · tap a cell to read it</span>
+          </div>
+          <div class="panel" id="picRead" style="margin-top:10px">
+            <span class="eyebrow">cell</span>
+            <p style="color:var(--ink-2);margin:6px 0 0">No cell picked yet.</p>
+          </div>
+        </div>
+
+        <!-- (b) turtle graphics -->
+        <div class="shape-pane" id="shape-turtle">
+          <div class="panel">
+            <div class="row">
+              <label class="field" style="flex:1 1 200px">preset
+                <select id="turPreset" aria-label="Turtle preset"></select>
+              </label>
+              <label class="field">steps
+                <input type="number" id="turN" value="2048" min="16" max="20000" step="16" style="width:92px">
+              </label>
+              <label class="field">speed
+                <input type="range" id="turSpeed" min="0" max="100" value="60" style="width:120px">
+              </label>
+              <button class="btn primary" id="turDraw">Draw</button>
+              <button class="btn" id="turPause">Pause</button>
+              <button class="btn ghost" id="turFit">Fit</button>
+            </div>
+            <div class="row" id="turAngles" style="margin-top:8px"></div>
+          </div>
+          <div class="canvas-frame" style="margin-top:10px">
+            <canvas class="pic" id="turCanvas" aria-label="Turtle path"></canvas>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <span class="pill" id="turInfo">—</span>
+            <span class="spacer"></span>
+            <span class="eyebrow">one step forward per symbol, then turn by that symbol's angle</span>
+          </div>
+        </div>
+
+        <!-- (c) sequence as a square -->
+        <div class="shape-pane" id="shape-square">
+          <div class="panel">
+            <div class="row">
+              <label class="field">side N
+                <input type="number" id="sqN" value="128" min="8" max="512" step="8" style="width:92px">
+              </label>
+              <label class="field" style="flex-direction:row;align-items:center;gap:6px">
+                <span>order</span>
+                <select id="sqOrder" aria-label="Fill order">
+                  <option value="row">row-major</option>
+                  <option value="boustro">boustrophedon</option>
+                </select>
+              </label>
+              <button class="btn primary" id="sqRun">Draw</button>
+              <span class="spacer"></span>
+              <span class="pill" id="sqInfo">—</span>
+            </div>
+          </div>
+          <div class="canvas-frame" style="margin-top:10px">
+            <canvas class="pic" id="sqCanvas" aria-label="The sequence laid out as a square"></canvas>
+            <div class="tip" id="sqTip"></div>
+          </div>
+          <p class="eyebrow" style="margin-top:8px">the first N² terms, row by row · tap a cell for its index</p>
+        </div>
+      </section>
+
       <!-- ------------------------------------------------ morphism -->
       <section class="view" id="view-morphism">
         <div class="view-head">
@@ -216,11 +330,13 @@
         <div class="panel">
           <div class="row" style="align-items:flex-start">
             <div class="mascot" id="mascot"></div>
-            <div style="flex:1;min-width:200px">
+            <div style="flex:1;min-width:min(200px,100%)">
               <div class="row">
                 <span class="eyebrow" id="liveState">idle</span>
+                <span class="chip" id="liveVerdict" hidden></span>
                 <span class="spacer"></span>
                 <button class="btn" id="cancelBtn" disabled>Stop the job</button>
+                <span class="chip done" id="liveDone" hidden>Done</span>
               </div>
               <div class="phasebar" id="phasebar"></div>
               <div class="phaselabels" id="phaselabels"></div>

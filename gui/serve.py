@@ -19,6 +19,7 @@ API
     GET  /api/seq     ?def=&n=&mode=       first n symbols of T
     GET  /api/export  ?def=&name=&pre=     one automaton as JSON
     GET  /api/femap   ?def=&i0=&j0=&size=&l=&mode=
+    GET  /api/pic     ?def=&name=&pre=&w=&h=&i0=&j0=&scale=&mode=
 
 Andrew Hingston — MIT.
 """
@@ -47,6 +48,17 @@ JOB_TTL = 1800            # seconds a finished job stays readable
 _KV = re.compile(r"(\w+)=(-?\d+)")
 
 
+def unrle(row):
+    """One `pic` row: either W hex digits, or `~<hex><count>.<hex><count>…`."""
+    if not row.startswith("~"):
+        return row
+    out = []
+    for run in row[1:].split("."):
+        if run:
+            out.append(run[0] * int(run[1:] or 1))
+    return "".join(out)
+
+
 def parse_line(line):
     """One engine stdout line -> a dict the front end can render without regexes."""
     line = line.rstrip("\n")
@@ -70,6 +82,14 @@ def parse_line(line):
     if head == "FEMAP":
         d.update({k: int(v) for k, v in _KV.findall(rest.split("rows=")[0])})
         d["rows"] = rest.split("rows=", 1)[1].split(",") if "rows=" in rest else []
+        return d
+    if head == "PIC":
+        pre = rest.split("rows=", 1)[0]
+        head_nums = [x for x in pre.split() if x.isdigit()]
+        d["w"] = int(head_nums[0]) if head_nums else 0
+        d["h"] = int(head_nums[1]) if len(head_nums) > 1 else 0
+        d.update({k: int(v) for k, v in _KV.findall(pre)})
+        d["rows"] = [unrle(r) for r in rest.split("rows=", 1)[1].split(",")] if "rows=" in rest else []
         return d
     if head == "ENUM":
         d["vars"] = rest.split("vars=[", 1)[1].split("]", 1)[0].split(",") if "vars=[" in rest else []
@@ -186,6 +206,26 @@ def _gtm(p, coding):
     """s_2(n) mod p as a 2-uniform morphism: state a -> a, (a+1) mod p."""
     words = " ".join(f"{a}{(a + 1) % p}" for a in range(p))
     return f"def T 2 {p} 0 {words} {coding}"
+
+
+def _sum_mod(base, q):
+    """s_base(n) mod q as a base-uniform morphism on q letters: a -> a, a+1, …, a+base-1."""
+    words = " ".join("".join(str((a + t) % q) for t in range(base)) for a in range(q))
+    return f"def T {base} {q} 0 {words} " + "".join(str(a) for a in range(q))
+
+
+def _carryfree(base, q):
+    """`i + j has no carries in base`, written in the logic.
+
+    Kummer: adding i and j in base `p` carries `c` times, and
+    s(i) + s(j) - s(i+j) = (p-1)·c.  Over the auxiliary sequence T[n] = s_base(n) mod q
+    that identity is a finite disjunction over the q² possible (T[i], T[j]) pairs — the
+    only shape of it the logic can say, since it compares letters and cannot add them.
+    Sound as long as (p-1)·c ≢ 0 (mod q) for every c in 1..carries, which is why the
+    window is bounded below.
+    """
+    return " | ".join(f"(T[i]={a} & T[j]={b} & T[i+j]={(a + b) % q})"
+                      for a in range(q) for b in range(q))
 
 
 def load_library():
@@ -320,7 +360,46 @@ def load_library():
       "dfa E i. (A t. t < n => T[i+t] = 0)", "", "structure")
     q("ap", "Arbitrarily long APs of step 3 that are constant 0",
       "? A n. E i. (A t. t < n => T[i+3*t] = 0)", "", "structure")
-    return {"sequences": seqs, "examples": ex}
+    # ---------------------------------------------------------------- shapes
+    # Each shape is a 2-variable predicate the Shapes view draws as a bitmap.  `pre` is
+    # run before the picture in the same session; `def` overrides the chosen sequence
+    # when the shape only makes sense over a particular one.
+    sh = []
+
+    def pic(sid, name, body, note, pre="", defline=None, extra=None):
+        e = {"id": sid, "name": name, "body": body, "note": note, "pre": pre}
+        if defline:
+            e["def"] = defline
+        if extra:
+            e.update(extra)
+        sh.append(e)
+
+    pic("eq", "T[i] = T[j]", "T[i]=T[j]",
+        "the agreement table: the sequence against itself")
+    pic("add", "T[i+j] — the addition table", "",
+        "the DFAO itself, one output letter per cell (no predicate)",
+        extra={"dfao": True})
+    pic("addrow", "T[i+j] = T[i]", "T[i+j]=T[i]",
+        "where the addition table repeats its own row header")
+    pic("neq", "T[i] ≠ T[j]", "T[i]!=T[j]", "the complement of the agreement table")
+    pic("fe8", "FE(i, j, 8) — equal length-8 factors", "$FE(i,j,8)",
+        "the FE heatmap at a fixed length, drawn from the automaton instead of the LCP walk",
+        pre="let FE(i,j,l) A t. t < l => T[i+t] = T[j+t]")
+    pic("fe-learn", "FE(i, j, 32) via learnfe", "$FE(i,j,32)",
+        "same picture, from the guess-and-verify construction", pre="learnfe FE")
+    pic("carry2", "Sierpiński — carry-free binary addition", _carryfree(2, 10),
+        "C(i+j, i) is odd exactly when i+j carries nowhere (Kummer); valid for i, j < 512",
+        defline=_sum_mod(2, 10), extra={"window": 512})
+    pic("carry3", "Pascal mod 3 — carry-free base-3 addition", _carryfree(3, 7),
+        "3 divides C(i+j, i) exactly when base-3 addition carries (Lucas/Kummer); i, j < 729",
+        defline=_sum_mod(3, 7), extra={"window": 729})
+    pic("pow", "i + j is a power of k", "pow(i+j)",
+        "the anti-diagonals at the powers of the base")
+    pic("sq", "a square of period j−i starts at i", "$FE(i,j,4) & i<j",
+        "pairs whose length-4 factors agree, above the diagonal",
+        pre="let FE(i,j,l) A t. t < l => T[i+t] = T[j+t]")
+
+    return {"sequences": seqs, "examples": ex, "shapes": sh}
 
 
 LIBRARY = None
@@ -405,6 +484,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._export(qs)
             if p == "/api/femap":
                 return self._femap(qs)
+            if p == "/api/pic":
+                return self._pic(qs)
             if p.startswith("/api/stream/"):
                 return self._stream(p.rsplit("/", 1)[-1])
             if p.startswith("/api/"):
@@ -469,7 +550,8 @@ class Handler(BaseHTTPRequestHandler):
         return head + tail + "\n"
 
     def _seq(self, qs):
-        n = max(1, min(int(qs.get("n", ["240"])[0]), 20000))
+        # the tape asks for a few thousand; the Shapes square asks for N^2 up to 512^2
+        n = max(1, min(int(qs.get("n", ["240"])[0]), 300000))
         r = run_script(self._script_for(qs, f"seq {n}"), timeout=30)
         for l in parse_stdout(r.stdout):
             if l["kind"] == "SEQ":
@@ -504,6 +586,31 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"i0": i0, "j0": j0, "size": size, "l": l,
                                    "rows": line["rows"], "ms": line.get("ms", 0)})
         return self._err(r.stdout.strip() or "fe_map produced no grid", 500)
+
+    def _pic(self, qs):
+        name = qs.get("name", ["T"])[0]
+        if not re.fullmatch(r"[A-Za-z_]\w*", name):
+            return self._err("bad predicate name")
+        w = max(1, min(int(qs.get("w", ["128"])[0]), 4096))
+        h = max(1, min(int(qs.get("h", ["128"])[0]), 4096))
+        if w * h > (1 << 20):
+            return self._err(f"{w}x{h} exceeds the 2^20-cell cap")
+        i0 = max(0, int(qs.get("i0", ["0"])[0]))
+        j0 = max(0, int(qs.get("j0", ["0"])[0]))
+        scale = max(1, int(qs.get("scale", ["1"])[0]))
+        script = self._script_for(qs, f"pic {name} {w} {h} {i0} {j0} {scale}")
+        r = run_script(script, timeout=int(qs.get("timeout", ["120"])[0]),
+                       mem_mb=qs.get("mem_mb", [None])[0])
+        lines = parse_stdout(r.stdout)
+        for l in lines:
+            if l["kind"] == "PIC":
+                return self._json({"w": l["w"], "h": l["h"], "i0": l.get("i0", i0),
+                                   "j0": l.get("j0", j0), "scale": l.get("scale", scale),
+                                   "vals": l.get("vals", 2), "ms": l.get("ms", 0),
+                                   "rows": l["rows"], "name": name})
+        err = next((l["raw"] for l in lines if l["kind"] == "ERR"), None)
+        return self._err(err or r.stdout.strip() or (r.stderr or "").strip()
+                         or "pic produced no picture", 500)
 
     def _stream(self, jid):
         with JOBS_LOCK:

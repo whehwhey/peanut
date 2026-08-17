@@ -1,0 +1,15 @@
+# Pell: digits {0,1,2}, a 2 must be followed by a 0, weights 1,2,5,12,29,...
+# Format: Walnut 'Custom Bases' automaton text (alphabet line, then
+# 'state output' blocks with 'digits -> target' transitions).  Walnut's own
+# msd_pell*.txt drop in unchanged; this file was generated and checked by
+# explore/gen_numsys.py (see docs/NUMERATION.md), not copied from Walnut.
+# Valid representations (weights U_l = #words of length l): 1, 2, 5, 12, 29, 70, 169, 408, ...
+{0, 1, 2}
+
+0 1
+0 -> 0
+1 -> 0
+2 -> 1
+
+1 0
+0 -> 0

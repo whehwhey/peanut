@@ -1,20 +1,17 @@
-"""Like-for-like FE benchmark: Peanut vs Walnut on the same sequences.
+"""Like-for-like FE benchmark: automatheus vs Walnut 8-dev on the same sequences.
 Walnut: morphism + promote + image(coding) + def FE, msd, -Xmx6g, wall-clock timeout.
 Ours:   engine.run msd default cap, then lsd, then small cap -- report best and total.
 
-Requires a separate checkout of Walnut (github.com/Walnut-Theorem-Prover/Walnut) built
-to target/Walnut-all.jar; point WALNUT_HOME at it (default: ../walnut next to this repo).
-Set JAVA_HOME's bin/java, or plain `java` on PATH, via the JAVA env var.
+Reads/writes: no results/*.json artifacts referenced directly (see code for any docs/ or in-memory-only use).
 
 Run:
-    python3 bench/walnut_fe.py bench/panel.json bench/results.json
+    python3 bench/walnut_fe.py [args - see __main__ / argv handling below]
 """
-import os, sys, json, subprocess, time, re
+import os, sys, json, subprocess, time, re, shutil
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "explore"))
 import engine
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-W = os.environ.get("WALNUT_HOME", os.path.join(os.path.dirname(ROOT), "walnut"))
-JAVA = os.environ.get("JAVA", "java")
+ROOT="/Users/andrew/maths"; os.chdir(ROOT)
+W=os.path.join(ROOT,"walnut7"); JAVA="/opt/homebrew/opt/openjdk/bin/java"
 def parse(d):
     p=d.split(); k=int(p[2]); m=int(p[3]); w=p[5:5+m]; c=p[5+m]; return k,m,w,c
 def walnut(d, name, timeout=900):

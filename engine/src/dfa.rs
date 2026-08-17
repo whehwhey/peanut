@@ -134,9 +134,14 @@ impl Dfa {
     }
 
     /// Language over the given vars that is everything (true) or nothing (false).
+    ///
+    /// Under a numeration system "everything" means "every track holds a valid
+    /// representation" -- this is the cylindrification leaf, and leaving it
+    /// unrestricted would let an unconstrained variable range over junk words.
     pub fn constant(k: usize, vars: Vec<String>, val: bool) -> Dfa {
         let alpha = pow(k, vars.len());
-        Dfa { k, vars, alpha, nstates: 1, trans: vec![0; alpha], accept: vec![val] }
+        let d = Dfa { k, vars, alpha, nstates: 1, trans: vec![0; alpha], accept: vec![val] };
+        if val { crate::numsys::restrict(&d) } else { d }
     }
 
     /// Does the automaton accept the empty word (state 0 accepting)?
@@ -165,38 +170,69 @@ impl Dfa {
     }
 
     /// Enumerate up to `limit` accepted words as tuples of integers (values of each var).
-    /// Words are explored by increasing length; leading zeros are stripped by dedup on value.
+    /// Words are explored by increasing length; padding is stripped by dedup on value.
+    ///
+    /// The word itself is kept (as a parent-pointer arena, 8 bytes per node) rather
+    /// than an incrementally accumulated value, because under a numeration system a
+    /// prefix has no value until the total length is known -- the value of a valid
+    /// word is its rank in the radix ordering of the validity language.
     pub fn enumerate(&self, limit: usize, maxlen: usize) -> Vec<Vec<u64>> {
         let n = self.vars.len();
         let mut out = Vec::new();
+        if n == 0 { return out; }
         let mut seen: std::collections::HashSet<Vec<u64>> = std::collections::HashSet::new();
-        // BFS over (state, values)
-        let mut frontier: Vec<(usize, Vec<u64>)> = vec![(0, vec![0; n])];
-        for depth in 0..maxlen {
-            let mut next = Vec::new();
-            for (s, vals) in frontier.drain(..) {
+        // arena of word nodes: (parent index, symbol); index 0 is the empty word
+        let mut par: Vec<u32> = vec![0];
+        let mut sym: Vec<u32> = vec![0];
+        let word_of = |par: &Vec<u32>, sym: &Vec<u32>, mut i: usize| -> Vec<usize> {
+            let mut w = Vec::new();
+            while i != 0 { w.push(sym[i] as usize); i = par[i] as usize; }
+            w.reverse();
+            w
+        };
+        let mut frontier: Vec<(usize, u32)> = vec![(0, 0)];
+        for _depth in 0..maxlen {
+            let mut next: Vec<(usize, u32)> = Vec::new();
+            for (s, node) in frontier.drain(..) {
                 for a in 0..self.alpha {
                     let d = self.t(s, a);
-                    let mut nv = vals.clone();
-                    // Accumulate according to the ACTIVE digit order. Reading an lsd
-                    // automaton as though it were msd silently produces a different
-                    // set of numbers, which looks like a plausible answer and is not one.
-                    if is_lsd() {
-                        let place = (self.k as u64).pow(depth as u32);
-                        for i in 0..n { nv[i] += digit(a, i, self.k) as u64 * place; }
-                    } else {
-                        for i in 0..n { nv[i] = nv[i] * self.k as u64 + digit(a, i, self.k) as u64; }
+                    let idx = par.len() as u32;
+                    par.push(node); sym.push(a as u32);
+                    if self.accept[d] {
+                        let w = word_of(&par, &sym, idx as usize);
+                        if let Some(v) = crate::numsys::decode_word(self.k, n, &w) {
+                            if seen.insert(v.clone()) {
+                                out.push(v);
+                                if out.len() >= limit { return out; }
+                            }
+                        }
                     }
-                    if self.accept[d] && seen.insert(nv.clone()) {
-                        out.push(nv.clone());
-                        if out.len() >= limit { return out; }
-                    }
-                    next.push((d, nv));
+                    next.push((d, idx));
                 }
             }
             if next.is_empty() { break; }
             // prune: cap frontier to avoid blowup
             if next.len() > 400_000 { next.truncate(400_000); }
+            // compact the word arena onto the surviving frontier's ancestors, so its
+            // size stays proportional to the frontier and not to everything explored
+            if par.len() > 1 << 20 {
+                let mut keep = vec![false; par.len()];
+                keep[0] = true;
+                for &(_, n) in next.iter() {
+                    let mut i = n as usize;
+                    while !keep[i] { keep[i] = true; i = par[i] as usize; }
+                }
+                let mut map = vec![0u32; par.len()];
+                let (mut np, mut nsym) = (Vec::new(), Vec::new());
+                for i in 0..par.len() {
+                    if !keep[i] { continue; }
+                    map[i] = np.len() as u32;
+                    np.push(map[par[i] as usize]);
+                    nsym.push(sym[i]);
+                }
+                for e in next.iter_mut() { e.1 = map[e.1 as usize]; }
+                par = np; sym = nsym;
+            }
             frontier = next;
         }
         out
@@ -250,8 +286,15 @@ impl Dfa {
     }
 
     /// Flip every accept bit; language complement over the same alphabet.
+    ///
+    /// Under a numeration system the flip would also accept every *invalid*
+    /// word (the original rejects them all), so the result is re-restricted to
+    /// valid representations -- the same thing Walnut's `not()` does with
+    /// `applyAllRepresentations`.  Without it `A i. phi(i)` is vacuously false
+    /// for any phi, since `E i. ~phi(i)` is witnessed by a junk word.
     pub fn complement(&self) -> Dfa {
-        Dfa { accept: self.accept.iter().map(|b| !b).collect(), ..self.clone() }
+        let c = Dfa { accept: self.accept.iter().map(|b| !b).collect(), ..self.clone() };
+        crate::numsys::restrict(&c)
     }
 
     /// Lift to a larger (superset) ordered variable list.
@@ -351,8 +394,12 @@ impl Dfa {
             i += 1;
         }
         peak_bump(order.len());
-        let accept = order.iter().map(|&(p, q)| op(a.accept[p as usize], b.accept[q as usize])).collect();
-        Dfa { k: a.k, vars, alpha, nstates: order.len(), trans, accept }.minimize()
+        let accept: Vec<bool> = order.iter().map(|&(p, q)| op(a.accept[p as usize], b.accept[q as usize])).collect();
+        let res = Dfa { k: a.k, vars, alpha, nstates: order.len(), trans, accept }.minimize();
+        // Both operands reject every invalid word, so the product accepts an
+        // invalid word exactly when op(false,false) does -- true for `=>` and
+        // `<=>`, false for `&` and `|`.  Only then is a re-restriction needed.
+        if op(false, false) { crate::numsys::restrict(&res) } else { res }
     }
 
     /// Conjunction (`&`): product automaton, accept iff both accept.

@@ -4,17 +4,19 @@
 //! `let` / `learnfe`.  The shape is deliberately flat and array-based: the viewer wants
 //! to lay out states, not to re-parse a grammar.
 //!
-//!   dfa   {"kind":"dfa","name":"FE","k":2,"mode":"msd","vars":["i","j","l"],
+//!   dfa   {"kind":"dfa","name":"FE","k":2,"mode":"msd","ns":"base","vars":["i","j","l"],
 //!          "alpha":8,"nstates":15,"initial":0,"accepting":[0,3,..],
 //!          "labels":[[0,0,0],[1,0,0],..],            // symbol -> digit per track
 //!          "trans":[[t0,t1,..],..]}                  // state -> symbol -> state
-//!   dfao  {"kind":"dfao","name":"T","k":2,"mode":"msd","nstates":2,"initial":0,
+//!   dfao  {"kind":"dfao","name":"T","k":2,"mode":"msd","ns":"base","nstates":2,"initial":0,
 //!          "out":[0,1],"trans":[[0,1],[1,0]],
 //!          "lsd":{"nstates":..,"out":[..],"trans":[[..]]}}
 //!
 //! Big automata are truncated to `AM_EXPORT_MAX` states (default 4000) — a graph view
 //! is useless past a few thousand nodes and the JSON would be tens of megabytes.
 //! Transitions leaving the exported prefix are written as -1 and `"truncated"` is true.
+//! `"ns"` is the active numeration system (`"base"` for built-in base k): the digit
+//! tuples in `"labels"` are that system's digits, not necessarily base-k ones.
 use crate::dfa::{digit, Dfa};
 use crate::dfao::Dfao;
 
@@ -23,6 +25,12 @@ fn max_states() -> usize {
 }
 
 fn mode() -> &'static str { if crate::dfa::is_lsd() { "lsd" } else { "msd" } }
+
+/// Active numeration system name, or `"base"` for built-in base k.  The viewer needs
+/// it to label digits: under `fib` the tracks are Zeckendorf digits, not base-2 ones.
+fn ns() -> String {
+    match crate::numsys::active() { Some(n) => n.name.clone(), None => "base".to_string() }
+}
 
 fn row(v: &[i64]) -> String {
     let mut s = String::from("[");
@@ -39,9 +47,9 @@ pub fn dfa_json(name: &str, params: &[String], a: &Dfa) -> String {
     let truncated = n < a.nstates;
     let mut s = String::with_capacity(n * a.alpha * 4 + 256);
     s.push_str(&format!(
-        "{{\"kind\":\"dfa\",\"name\":\"{}\",\"k\":{},\"mode\":\"{}\",\"vars\":[{}],\
+        "{{\"kind\":\"dfa\",\"name\":\"{}\",\"k\":{},\"mode\":\"{}\",\"ns\":\"{}\",\"vars\":[{}],\
 \"params\":[{}],\"alpha\":{},\"nstates\":{},\"shown\":{},\"truncated\":{},\"initial\":0",
-        name, a.k, mode(),
+        name, a.k, mode(), ns(),
         a.vars.iter().map(|v| format!("\"{}\"", v)).collect::<Vec<_>>().join(","),
         params.iter().map(|v| format!("\"{}\"", v)).collect::<Vec<_>>().join(","),
         a.alpha, a.nstates, n, truncated));
@@ -78,9 +86,9 @@ pub fn dfao_json(d: &Dfao) -> String {
     let ln = d.lnstates.min(cap);
     let mut s = String::with_capacity((n + ln) * d.k * 4 + 256);
     s.push_str(&format!(
-        "{{\"kind\":\"dfao\",\"name\":\"{}\",\"k\":{},\"mode\":\"{}\",\"nstates\":{},\
+        "{{\"kind\":\"dfao\",\"name\":\"{}\",\"k\":{},\"mode\":\"{}\",\"ns\":\"{}\",\"nstates\":{},\
 \"shown\":{},\"truncated\":{},\"initial\":0",
-        d.name, d.k, mode(), d.nstates, n, n < d.nstates));
+        d.name, d.k, mode(), ns(), d.nstates, n, n < d.nstates));
     s.push_str(",\"out\":[");
     for q in 0..n { if q > 0 { s.push(','); } s.push_str(&d.out[q].to_string()); }
     s.push_str("],\"trans\":[");
