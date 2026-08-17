@@ -1,0 +1,663 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{array}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{conjecture}[theorem]{Conjecture}
+\newtheorem*{openproblem}{Open Problem}
+
+\title{How large is the equality-of-factors automaton?\\
+Empirical evidence and construction strategy for an open problem of Khodier}
+\author{Andrew Hingston}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+For a $k$-automatic sequence $T$ produced by an $m$-state DFAO, the \emph{equality of
+factors} predicate $FE(i,j,l) := \forall t\,(t<l \Rightarrow T[i+t]=T[j+t])$ defines a
+language whose minimal automaton size $|FE|$ is of interest both computationally (Walnut
+and related tools routinely blow up while constructing it) and structurally: Khodier's
+2026 thesis states as Open Problem 1 that no class of examples with \emph{exponential}
+blowup in $m$ is known, and conjectures that one exists. We report a large empirical
+sweep (random $k$-uniform morphisms, $k\in\{2,3\}$, $m\le7$) that finds no such family in
+the bulk ($|FE|$ scales like $2$--$4\,m^3$ at the median, with a small unresolved tail),
+identify that most apparent construction-time blowups are digit-order artefacts rather
+than genuine largeness of the minimal automaton, isolate ``lossy coding of a group
+automaton'' as the one lead that empirically inflates $|FE|$, and give a
+reverse-first-determinization construction strategy that solves several inputs on which a
+current build of Walnut fails at equal memory. On the theory side we report an
+unconditional, referee-checked result: for the generalised Thue--Morse family $G_p$ (a
+$p$-state DFAO), $|FE_{G_p}|_{\mathrm{msd}}=\Theta(p^3)$, exactly $p^3+8$ for
+$3\le p\le24$ -- the first infinite family with $|FE|$ pinned to a matching polynomial
+order. We also report a conditional upper bound
+$|FE|\le m^4+m^6+m^8\Lambda(T)^2$ in terms of a computable, morphism-only invariant
+$\Lambda$, and state honestly what remains open: no exponential family, and no
+unconditional upper bound smaller than the literature's $2^{9m^2}$, has been found.
+\end{abstract}
+
+\tableofcontents
+
+\section{Introduction and problem statement}
+
+Automatic sequences -- infinite sequences produced by finite automata reading the
+base-$k$ digits of $n$ -- support a decision procedure (implemented in tools such as
+Walnut) that reduces first-order statements about the sequence to automaton
+constructions. A recurring primitive in that procedure is the \emph{equality of
+factors} predicate
+\[
+FE(i,j,l) \;:=\; \forall t\,\big(t<l \Rightarrow T[i+t]=T[j+t]\big),
+\]
+asserting that the length-$l$ factors of $T$ starting at positions $i$ and $j$ agree.
+$FE$ underlies statements about repetitions, palindromes, critical exponents, and
+recurrence, and its automaton is frequently built as an intermediate step in larger
+queries even when it is not the final object of interest.
+
+Mazen Khodier's 2026 PhD thesis (\emph{New Methods for Analyzing the Properties of
+Automatic Sequences}, University of Waterloo, Chapter 8) records that the size of the
+minimal automaton for $FE$, relative to the size $m$ of the DFAO producing $T$, is open.
+Verbatim:
+
+\begin{openproblem}[Khodier 2026, Chapter 8]
+Give a characterization for the $k$-automatic sequences that have an exponential blowup
+in size when constructing the ``equality of factors'' automaton. Currently no such class
+of examples is known.
+This issue has two distinct aspects. The first concerns the size of the minimal
+automaton for the equality of factors predicate relative to the size of the morphism.
+We believe that this relationship is exponential, but currently, no class of examples
+is known that proves this behavior. The second aspect involves determining the most
+efficient strategy for constructing this automaton [\ldots]
+\end{openproblem}
+
+The thesis records one existing upper bound, for a different but logically equivalent
+formulation
+$$FE_2(i,j,n) := \forall u,v.\ (u\ge i \,\wedge\, u<i+n \,\wedge\, u+j=v+i) \Rightarrow T[u]=T[v],$$
+namely $|FE_2|\le 2^{9m^2}$, and a worked anecdote: the Tribonacci word's minimal $FE$
+has only $26$ states, but the naive one-shot Walnut construction of it peaked at
+$323{,}831{,}403$ intermediate states and $300$~GB before finishing. That anecdote is the
+seed of the present study: it shows the two aspects of the open problem are decoupled --
+the \emph{final} automaton can be small even when the \emph{construction} is enormous --
+and raises the question of how general that decoupling is.
+
+This paper reports on an empirical and partly theoretical investigation of both aspects,
+using a purpose-built Rust automaton engine (\S\ref{sec:method}) with a Brzozowski
+reverse-first construction strategy and hard memory guards, run at scale over random and
+structured families of automatic sequences. \S\ref{sec:method} describes the engine and
+sweep design. \S\ref{sec:results} reports the random-ensemble table, the digit-order
+artefact finding, structured-family results, and the coding-spectrum lead. \S\ref{sec:construction}
+gives the construction strategy and a like-for-like benchmark against Walnut.
+\S\ref{sec:theory} states what is unconditionally proved and what remains conjectural,
+following an independent adversarial referee pass (\texttt{paper/proof-verdict.md}).
+\S\ref{sec:conjecture} states the polynomial conjecture with an honest confidence level.
+\S\ref{sec:limitations} and \S\ref{sec:repro} close with limitations and reproducibility.
+
+\emph{On overclaiming.} Every number in this paper traces to a file under
+\texttt{results/*.json}, a table in \texttt{docs/TARGET1.md} or \texttt{docs/TARGET1-TABLE.md},
+or a lemma/theorem in \texttt{paper/proof-*.md} whose status has been independently
+checked (\texttt{paper/proof-verdict.md}). Section~\ref{sec:theory} includes \emph{only}
+what the referee verdict marks PROVED; everything the verdict marks fitted, heuristic, or
+partially machine-verified is reported as such, not as a theorem.
+
+\section{Method}
+\label{sec:method}
+
+\subsection{Engine}
+The automaton engine (\texttt{engine/}, Rust) is driven by a small command language over
+stdin: \texttt{mode msd|lsd} selects most- or least-significant-digit-first reading;
+\texttt{def T k m start w\_0..w\_\{m-1\} coding} defines a $k$-uniform, $m$-state DFAO
+with an output coding; \texttt{let NAME(args) formula} defines a named predicate in a
+first-order language over $\forall/\exists$, indexing $T[i+t]$, and boolean connectives
+\texttt{\& | => !=}, with \texttt{\$NAME(...)} for predicate composition; \texttt{?
+formula} decides a closed formula; \texttt{mem} reports live/peak allocator bytes.
+$|FE|$ throughout is the number of states of the minimal \emph{complete} DFA, including
+the dead state (Walnut's convention differs by exactly $1$; this is corrected for in all
+Walnut comparisons in \S\ref{sec:construction}).
+
+\subsection{Guard}
+A single earlier sweep run crashed the host machine by launching many unbounded engine
+processes in parallel. Three independent guards now prevent this (\texttt{docs/GUARD.md}):
+(1) a hard allocator budget inside the engine (\texttt{AM\_MEM\_MB}, default $2048$~MB;
+on exceeding it the process exits cleanly with status~3 and no partial state);
+(2) \texttt{explore/engine.py}, the sole sanctioned way to launch the engine from Python,
+providing admission control (a job does not start until free RAM exceeds a floor and
+kernel memory pressure is normal), a watchdog that kills over-budget children, and
+guaranteed cleanup on exit; (3) a system-level LaunchAgent that kills any engine process
+exceeding an absolute RSS ceiling regardless of how it was launched. A \texttt{FAIL
+budget} outcome in a sweep is a datum -- the automaton genuinely exceeded the ceiling --
+not an artefact of the harness.
+
+\subsection{Sweep design}
+The primary random sweep (\texttt{explore/blowup.py}, plus rescue passes) draws
+$k$-uniform admissible morphisms with a binary coding from a sampler named PRISM, for
+$k\in\{2,3\}$ and DFAO size $m\in\{2,\ldots,7\}$, targeting up to $40$ admissible
+sequences per $(k,m)$ cell. For each sequence, $|FE|$ is measured as the minimal DFA size
+of $FE(i,j,l)$. A sequence that fails (memory budget or timeout) in msd is retried in
+lsd, and vice versa; sequences that fail in both digit orders are further retried under
+Khodier's alternative $FE_2$ formulation and under a forced small-subset-cap ladder
+(\S\ref{sec:construction}). The final merged table (\texttt{docs/TARGET1-TABLE.md},
+built by \texttt{explore/final\_table.py} from \texttt{results/blowup.json},
+\texttt{results/blowup\_retry.json}, \texttt{results/blowup\_residue.json},
+\texttt{results/blowup\_residue2.json}, \texttt{results/blowup\_residue3.json}) keeps one
+number per sequence, preferring an msd value (msd and lsd sizes for the same predicate
+genuinely differ) and falling back to an lsd-only or still-censored classification when
+no msd value was obtained in any pass.
+
+Beyond the random ensemble, structured families are swept by dedicated scripts
+(\texttt{explore/thin\_families*.py}, \texttt{struct\_families.py}, \texttt{gtm\_full.py},
+\texttt{blowup\_features.py}) covering thin/counting sets (fixed number of $1$-bits),
+pattern-containment sets, digit-sum-mod-$p$ sequences under both the faithful group
+coding and a lossy binary coding, and a feature-correlation study relating prefix
+statistics (subword complexity growth, run length, right-special count) to $|FE|$ within
+a size class.
+
+\section{Results}
+\label{sec:results}
+
+\subsection{Random ensemble: no exponential family in the bulk}
+
+Table~\ref{tab:ensemble} reproduces the final uncensored per-$(k,m)$ quartile table
+(\texttt{docs/TARGET1-TABLE.md}), merged over five rescue passes. Of $412$ dispatched
+sequences, $356$ resolved to an msd value, $45$ resolved only in lsd (not directly
+comparable, hence excluded from the quartiles), and $11$ remain still-censored after five
+rescue passes -- all in the two hardest cells, $k=2,m=6$ (one sequence) and $k=3,m=7$
+(ten sequences).
+
+\begin{table}[h]
+\centering
+\caption{Random-ensemble $|FE|$ (msd) by $(k,m)$, quartiles over resolved sequences.
+$n$ = dispatched, cens = still-censored. Source: \texttt{docs/TARGET1-TABLE.md},
+\texttt{results/final\_table.json}.}
+\label{tab:ensemble}
+\begin{tabular}{@{}rrrrrrrrrrr@{}}
+\toprule
+$k$ & $m$ & $n$ & cens & min & q1 & med & q3 & max & med$/m^3$ & $\log_2(\max)/m$ \\
+\midrule
+2 & 2 & 8  & 0  & 3   & 6   & 8   & 10   & 15   & 0.94 & 1.95 \\
+2 & 3 & 33 & 0  & 9   & 34  & 51  & 96   & 218  & 1.89 & 2.59 \\
+2 & 4 & 24 & 0  & 24  & 58  & 161 & 404  & 549  & 2.52 & 2.28 \\
+2 & 5 & 39 & 0  & 97  & 260 & 340 & 403  & 924  & 2.72 & 1.97 \\
+2 & 6 & 40 & 1  & 201 & 474 & 608 & 966  & 2124 & 2.81 & 1.84 \\
+2 & 7 & 40 & 0  & 200 & 685 & 882 & 1134 & 1770 & 2.57 & 1.54 \\
+3 & 2 & 28 & 0  & 3   & 7   & 17  & 22   & 38   & 2.12 & 2.62 \\
+3 & 3 & 40 & 0  & 10  & 50  & 72  & 100  & 190  & 2.69 & 2.52 \\
+3 & 4 & 40 & 0  & 135 & 216 & 250 & 348  & 532  & 3.91 & 2.26 \\
+3 & 5 & 40 & 0  & 112 & 328 & 424 & 509  & 1604 & 3.40 & 2.13 \\
+3 & 6 & 40 & 0  & 311 & 540 & 752 & 872  & 2356 & 3.48 & 1.87 \\
+3 & 7 & 40 & 10 & 521 & 722 & 847 & 1085 & 3480 & 2.47 & 1.68 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Power-law fits to the medians beat exponential fits by roughly an order of magnitude in
+log-residual sum of squares (\texttt{docs/TARGET1-TABLE.md}):
+\begin{align*}
+k=2:&\quad \mathrm{med} \approx 0.666\, m^{3.81}\ (\mathrm{SSE}=0.18) \qquad\text{vs.}\qquad
+        \mathrm{med} \approx 2.44 \cdot 2.496^{m}\ (\mathrm{SSE}=1.26),\\
+k=3:&\quad \mathrm{med} \approx 2.11\, m^{3.23}\ (\mathrm{SSE}=0.21) \qquad\text{vs.}\qquad
+        \mathrm{med} \approx 6.42 \cdot 2.168^{m}\ (\mathrm{SSE}=1.07).
+\end{align*}
+$\log_2(\max)/m$, the quantity that would grow without bound under a true exponential
+family, instead \emph{falls} with $m$ in five of six columns per $k$. The largest msd
+value found anywhere in the ensemble is $|FE|=3480$ ($k=3,m=7$,
+\texttt{def T 3 7 0 044 513 202 604 520 421 061 1111110}), surfaced only via the forced
+small-cap ladder of \S\ref{sec:construction} -- first-pass msd and every other
+formulation failed on it.
+
+This is evidence about the \emph{typical} case under one random-morphism sampler, not a
+proof about all automatic sequences; a single adversarial family would settle Open
+Problem 1(A) regardless of what typical sequences look like. The $11$ still-censored
+sequences, concentrated entirely in $k=3,m=7$, are exactly where such a family would have
+to live and remain unresolved.
+
+\subsection{Finding: most apparent blowups are digit-order artefacts}
+
+Of $47$ sequences that failed the memory budget in msd during the first sweep pass,
+$45$ (96\%) finished in lsd at modest size ($64$--$989$ states for $k=3$, $m\in\{3,4\}$).
+Every $k=3$, $m\in\{3,4\}$ failure was such an artefact: the \emph{construction} blew up
+in one digit order while the \emph{minimal} automaton was small and reachable in the
+other. This reproduces, at scale across hundreds of sequences, exactly the pattern of
+Khodier's Tribonacci anecdote (26 final states, 323 million intermediate states) --
+suggesting the decoupling between construction cost and final size is common, not a
+one-off. It also means aspect (B) of Open Problem 1 (construction strategy) is a real and
+separate problem from aspect (A) (minimal size): most of what looks like evidence for
+exponential blowup in a naive single-pass sweep is not evidence for aspect (A) at all.
+
+\subsection{Structured families}
+
+Table~\ref{tab:struct} summarizes the structured-family sweeps
+(\texttt{docs/TARGET1.md}, ``Structured families''). All values are minimal $|FE|$, msd
+unless stated; a dash marks an engine failure at the stated budget.
+
+\begin{table}[h]
+\centering
+\caption{Structured families, $|FE|$ vs.\ parameter. Source: \texttt{docs/TARGET1.md}.}
+\label{tab:struct}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Family & Mode & Growth \\
+\midrule
+exactly $c$ ones, base 2 ($m=c+2$) & msd & 52, 183, --, 1042, 2008, 3463 ($\sim c^3$) \\
+exactly $c$ ones, base 2 & lsd & 41, 242, 1133, 4227, 13461, 38504 (ratios $5.9,4.7,3.7,3.2,2.9$) \\
+at most $c$ ones, base 2 & msd & 51, 108, --, 327, 502, 730 ($\sim c^{2.5}$) \\
+contains $1^r$ in binary ($m=r+1$) & msd & 7, 91, --, --, 998, 1713, 2700, 4004 (ratios $\sim1.5$) \\
+contains $10^{r-1}$ & msd & 13, 54, --, --, 587, 1026, 1651 (polynomial) \\
+$s_2(n)\bmod p$, full output ($m=p$) & msd & 15, 35, --, 133, 224, 351, 520, 737 ($\sim p^{2.5}$) \\
+$s_2(n)\bmod p$, full output & lsd & 22, 39, 56, 77, 102, 131, 164, 201 (exactly quadratic) \\
+$[s_2(n)\bmod p \ne 0]$, binary code & msd & 15, 190, 698, 1877, --, --, --, -- (ratios $12.7,3.7,2.7$) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Reading (\texttt{docs/TARGET1.md}): thin/counting sets and pattern-containment sets both
+give polynomial growth. The generalised-Thue--Morse family with \emph{full} output is
+polynomial and exactly quadratic in lsd; the naive heuristic that $FE$ forces
+$i\equiv j\pmod{2^p}$ (hence $2^p$ msd states) is refuted by direct measurement and
+retracted in that document -- the congruence is forced globally along the whole window,
+so the msd automaton never needs a sliding window. The one family that grows fast within
+the range measured is $[s_2(n)\bmod p\ne0]$, the \textbf{lossy binary coding} of the same
+$p$-state group automaton, discussed next.
+
+\subsection{The coding-spectrum lead}
+
+Collapsing $s_2(n)\bmod p$ from a faithful $p$-letter output to the single bit
+$[s_2(n)\not\equiv0\bmod p]$ keeps the DFAO at $p$ states but multiplies $|FE|$ by
+roughly $100\times$ at $p=4$ in lsd ($6154$ vs.\ $56$; \texttt{docs/TARGET1.md}). This is
+the one effect in the entire sweep where a size-preserving change to the sequence
+(recoding the output alphabet, not changing the transition structure) produces a large
+multiplicative jump in $|FE|$, and it is the empirical seed of the theoretical work in
+\S\ref{sec:theory}: the relevant invariant is not ``big automaton'' but ``lossy coding of
+a group automaton,'' where the $FE$ automaton must track a pair of group elements rather
+than their difference.
+
+\subsection{The $3p^4$ fit, and its retraction}
+
+An earlier fit to the singleton-coding family $T_p=[s_2(n)\equiv1\bmod p]$ reported
+$|FE_{T_p}|\approx 3p^4$ to within $2.5\%$ using six points, $p=3,\ldots,8$: $190, 698,
+1877, 3971, 7243, 11988$. This fit is \textbf{not} carried forward as established. The
+referee review (\texttt{paper/proof-verdict.md}, on \texttt{proof-lower.md} \S5) and the
+family document itself (\texttt{proof-family.md} \S5.4) both flag it as unsafe: at
+$p=3$, $3p^4=243$ against a measured $190$, a $28\%$ error, not $2.5\%$; and the local
+log-log slope of the same six points \emph{falls through} $4$ (from $4.52$ to $3.77$
+over $p=3..8$), while a cubic fit ($44.4p^3-205.4p^2+308.5p-88.7$) matches the same data
+with residual $\le5.7$. The decisive point that would separate a cubic from a quartic
+law, $p=9$ msd, does not fit in a $6$~GB memory guard and remains unresolved (confirmed
+again during the referee pass: allocator budget exceeded, return code~3). The status of
+$T_p$'s growth exponent is therefore \textbf{open}, not $\Theta(p^4)$ as earlier stated.
+
+\section{Construction strategy and the Walnut benchmark}
+\label{sec:construction}
+
+\subsection{The ladder}
+Across every hard case encountered, a small forward-subset-construction cap (e.g.\
+$50{,}000$ subsets) that fails fast into a Brzozowski reverse-first determinization
+consistently beats a large forward cap by orders of magnitude: an exact-$c=3$ counting
+sequence resolves to $482$ states in effectively no time under the small-cap-then-reverse
+ladder, versus exhausting a $6$~GB budget under a large forward cap; $[s_2\equiv a
+\bmod 5]$ resolves at $30$~MB versus blowing $3.3$~GB (\texttt{docs/TARGET1.md}). This
+ladder -- small forward cap, Brzozowski reverse, larger forward cap, Brzozowski reverse
+again -- is now the engine's default construction strategy.
+
+\subsection{Like-for-like benchmark against Walnut}
+\texttt{bench/README.md} reports a controlled comparison against Walnut~8-dev (head
+2026-06-15, OpenJDK~26, \texttt{java -Xmx6g}), both run with a 6~GB memory ceiling and,
+for the engine, a 15-minute wall-clock timeout on the Walnut side. Both tools count
+minimal DFA states; the engine's count includes the dead state, Walnut's does not, so
+\texttt{ours = Walnut + 1} whenever both finish -- itself an independent cross-check of
+every $|FE|$ number reported elsewhere in this paper.
+
+\begin{table}[h]
+\centering
+\caption{$|FE|$ and wall time, engine vs.\ Walnut 8-dev, 6~GB each. Source:
+\texttt{bench/README.md}.}
+\label{tab:walnut}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Sequence & Ours (states) & $s$ & Walnut (states) & $s$ \\
+\midrule
+Thue--Morse & 15 & 0.0 & 14 & 0.3 \\
+period-doubling & 8 & 0.0 & 7 & 0.2 \\
+Rudin--Shapiro & 68 & 0.1 & 67 & 0.4 \\
+paperfolding & 44 & 0.0 & 43 & 0.2 \\
+Cantor & 17 & 0.0 & 16 & 0.2 \\
+Mephisto & 14 & 0.0 & 13 & 0.3 \\
+PRISM-a & 24 & 0.0 & 23 & 0.3 \\
+PRISM-d & 82 & 0.5 & 81 & 0.9 \\
+champion-$m5$ & 199 & 0.0 & 198 & 6.1 \\
+$k3m3$-artefact-b & 71 & 0.0 & 70 & 18.0 \\
+$k3m3$-artefact-a & 216 & 0.0 & 215 & 444.5 \\
+PRISM-1 ($k{=}4,m{=}6$) & 467 & 38.6 & OOM & 251.5 \\
+$[s_2\equiv a\bmod3]$ & 190 & 1.5 & timeout & 900 \\
+$[s_2\equiv a\bmod4]$ & 698 & 0.2 & OOM & 313 \\
+$[s_2\equiv a\bmod5]$ & 1877 & 2.1 & OOM & 92 \\
+$[s_2\equiv a\bmod6]$ & 3971 & 20.9 & OOM & 53 \\
+tail-a ($k{=}2,m{=}7$) & 1165 & 139 & OOM & 77 \\
+tail-b ($k{=}3,m{=}5$) & 1000 & 168 & OOM & 119 \\
+tail-c ($k{=}2,m{=}6$) & fail (535) & -- & OOM & 164 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+On easy inputs the two tools are equivalent -- both instant, same automaton. On the
+FE-hard inputs (group automata with lossy codings, PRISM-1, the sweep tail), Walnut
+8-dev at $6$~GB fails on $7$ of $9$ and needs $7$ minutes on an eighth, while the engine
+answers $8$ of $9$ in $0$--$170$~s at the same memory. The difference, per
+\texttt{bench/README.md}, is construction strategy -- reverse-first determinization with
+a small forward cap, and the lsd/msd switch -- not raw speed; Walnut has a
+\texttt{reverse} command and could adopt the same strategy, but it is not its default.
+
+\paragraph{Fairness caveats, quoted verbatim from \texttt{bench/README.md}.} ``Walnut got
+its default forward msd construction with no expert reformulation (Khodier's
+self-verifying predicates would rescue some of these); a bigger heap would rescue some
+more; and this is Walnut on the predicate its own authors document as the pathological
+one. It is a benchmark of one predicate family, not of the tools.''
+
+\subsection{\texttt{learnfe}: guess-and-verify construction}
+\label{sec:learnfe}
+
+Table~\ref{tab:walnut}'s one remaining direct-construction failure, tail-c ($k{=}2,m{=}6$,
+\texttt{def T 2 6 0 05 23 44 42 51 10 000010}), which stalled at $535$ states under a
+$6$~GB budget, is resolved by a second construction strategy implemented as the engine
+command \texttt{learnfe} (\texttt{docs/LEARNFE.md}). Rather than compiling the
+universally-quantified formula $FE(i,j,l)=\forall t\,(t<l\Rightarrow T[i+t]=T[j+t])$
+directly -- the projection over $t$ that causes the blowup -- \texttt{learnfe} builds a
+candidate DFA by Kearns--Vazirani active learning against a membership oracle
+$FE(i,j,l)\Leftrightarrow l\le\mathrm{LCP}(i,j)$, then \emph{verifies} the candidate
+against a recurrence
+$$H(i,j,l) \iff \big(l=0 \ \text{or}\ (T[i]{=}T[j]\ \text{and}\ H(i{+}1,j{+}1,l{-}1))\big)$$
+that only $FE$ satisfies (a one-line induction on $l$; \texttt{docs/LEARNFE.md} \S2), so
+the reported automaton is exactly $FE$ regardless of how the candidate was reached --
+there is no notion of an approximately-correct answer. On tail-c itself, \texttt{learnfe}
+completes at $\mathbf{1382}$ states in $14.2$~s and $50$~MB peak. On the $17$ cases where
+both constructions finish, they agree exactly, checked inside the engine as
+\texttt{A i,j,l. \$FE(i,j,l) <=> \$G(i,j,l)} $\to$ \texttt{TRUE}
+(\texttt{docs/LEARNFE.md} \S6.1), and independently, without any automaton machinery, by a
+pure-Python brute force over morphism-generated prefixes diffing every $FE(i,j,l)$,
+$i,j,l<B$ against the learned automaton ($416/416$ for Rudin--Shapiro at $B{=}12$ in both
+digit orders, $826/826$ for tail-c at $B{=}14$, $325/325$ for tail-b at $B{=}11$).
+
+Because tail-c now has a verified value, the Walnut comparison of
+Table~\ref{tab:walnut} becomes $\mathbf{9/9}$: on all nine FE-hard inputs (the four
+group-automaton lossy codings, PRISM-1, and the four sweep-tail sequences), the engine
+now produces a verified answer at $6$~GB where Walnut 8-dev fails on seven and needs
+seven minutes on an eighth.
+
+\texttt{learnfe} also resolves three further sequences from the still-censored tail of
+\S\ref{sec:results} that neither digit order of the direct construction could build at a
+$2.5$~GB budget in $360$~s (\texttt{results/learnfe\_censored.json}): tail-b
+($k{=}3,m{=}5$) at $1000$ states, $25.7$~s, $179$~MB; \texttt{c-3.7d} ($k{=}3,m{=}7$) at
+$1147$ states, $44.4$~s, $109$~MB; and \texttt{c-3.7h} ($k{=}3,m{=}7$) at $781$ states,
+$23.2$~s, $80$~MB. Nine of the thirteen sequences attempted in that pass remain
+unresolved at this budget -- all $k=3$, where the $27$-letter track alphabet makes each
+equivalence query an order of magnitude more expensive. \texttt{learnfe} is not
+uniformly faster than the direct construction: on easy inputs (e.g.\ Thue--Morse) the
+direct construction wins by orders of magnitude, since \texttt{learnfe}'s cost tracks the
+\emph{answer} size rather than any intermediate blowup. It is a second tool for aspect
+(B) of Open Problem 1, not a replacement for the ladder of \S\ref{sec:construction}.
+
+\section{Towards a proof}
+\label{sec:theory}
+
+This section reports only what an independent adversarial referee pass
+(\texttt{paper/proof-verdict.md}, checking every load-bearing lemma by hand and, where
+finite, by an independent brute force not written by the original authors) marked
+\textbf{PROVED}. Results marked as fits, heuristics, or partially machine-verified are
+labelled accordingly; none are stated as theorems.
+
+\subsection{Proved: a matching-order family, $|FE_{G_p}| = \Theta(p^3)$}
+
+Let $G_p[n] := s(n) \bmod p$ (the digit sum of $n$ in base $2$, reduced mod $p$), the
+fixed point of the $2$-uniform morphism $a\mapsto a\,(a{+}1)$ on $\mathbb Z_p$ with the
+identity coding: a $p$-state DFAO ($m=p$), the \emph{generalised Thue--Morse word}.
+
+\begin{theorem}[Referee-verified; \texttt{proof-family.md} Thm.\ 4.4, 4.5]
+\label{thm:gp}
+For every $p\ge3$, the minimal msd DFA of $FE_{G_p}$ has at least $p^3$ states, and
+$$p^3 \;\le\; |FE_{G_p}|_{\mathrm{msd}} \;\le\; 34p^3+98p^2+41p \;=\; O(m^3),\qquad
+|FE_{G_p}|_{\mathrm{lsd}} \;\le\; 128p^2+160p+19 \;=\; O(m^2).$$
+\end{theorem}
+The lower bound rests on a parity-rigidity lemma (a factor of $G_p$ of length $\ge4$
+determines the parity of its occurrence positions) and a Myhill--Nerode argument
+distinguishing $p^3$ residuals by an explicit construction of prefixes; the upper bound
+is by inspection of an explicit finite state space of size $O(p^3)$ (resp.\ $O(p^2)$ in
+lsd). Both directions were independently re-derived by hand and, where finite, checked by
+brute force ($p=2..7$, up to $2{,}058{,}000$ triples for the characterisation lemma) by
+the referee pass, with $0$ mismatches.
+
+Separately, and only for each individual $p$ in the range checked (a machine-verified
+statement, not a proof for all $p$):
+$$|FE_{G_p}|_{\mathrm{msd}} = p^3+8,\qquad |FE_{G_p}|_{\mathrm{lsd}} = 2p^2+3p+12,\qquad
+3\le p\le24$$
+(exception $p=2$, ordinary Thue--Morse: $15$ and $22$). Engine values reproduced by the
+referee at $p=3,7,11,13,16$: msd $=35,351,1339,2205,4104$; lsd $=39,131,287,389,572$,
+matching the closed forms exactly.
+
+This is, to our knowledge, the first infinite DFAO family for which $|FE|$ is pinned to a
+matching polynomial order -- evidence \emph{against} exponential blowup for this specific
+class, against a literature ceiling of $2^{9m^2}$ (Khodier 2026) for the general case.
+
+\subsection{Proved (conditional): a computable predictor $\Lambda$, and $|FE|\le m^4+m^6+m^8\Lambda(T)^2$}
+
+\begin{theorem}[Referee-verified; \texttt{proof-upper.md} Thm.\ 5.4, and supporting Lemma 3.1, Cor.\ 3.2, Thm.\ 4.3]
+\label{thm:lambda}
+For any $k$-automatic $T$ with minimal msd DFAO of size $m$, the Myhill--Nerode residual
+of an $FE$ prefix $(I,J,L)$ with $L\ge2$ is determined by exactly $8$ DFAO states plus
+one further datum $\Theta$ (the \emph{middle language}), which depends on $(I,J,L)$ only
+through two subsets of $Q^3$. Consequently there is a morphism-only invariant
+$\Lambda(T)$, computable in time polynomial in $m^3$ and $\Lambda$ without ever
+constructing $FE$, such that
+$$|FE_{\mathrm{msd}}(T)| \;\le\; m^4+m^6+m^8\,\Lambda(T)^2.$$
+\end{theorem}
+This was checked by \texttt{paper/proof-upper-check.py} with $0$ violations on the
+authors' worked examples, and independently re-run by the referee on five adversarial
+DFAOs the authors had not tested (an $m=4$ extremal automaton, a thin set, a ruler
+family, and both codings of $\mathbb Z_4$), again $0$ violations. Table~\ref{tab:lambda}
+gives measured $(\Lambda, |FE|)$ pairs.
+
+\begin{table}[h]
+\centering
+\caption{$\Lambda$ vs.\ measured $|FE|$ on adversarial examples. Source:
+\texttt{paper/proof-verdict.md} \S1.}
+\label{tab:lambda}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Example & $\Lambda$ & $\#\Theta$ & $|FE|$ (engine) \\
+\midrule
+$C_4$ champion (\texttt{0 01 22 33 10 / 1110}) & 74 & 61 & 1152 \\
+ruler $r=4$ & 35 & 61 & 113 \\
+exactly-2-ones & 30 & 10 & 183 \\
+$\mathbb Z_4$ singleton coding & 28 & 24 & 698 \\
+$\mathbb Z_4$ faithful coding & 4 & 2 & 72 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{What this theorem does and does not give.} $\Lambda$ separates the extremes
+($4$ for the faithful group automaton, $74$ for the densest $m=4$ example found), and it
+is empirically the only invariant in this study that separates a faithful coding from a
+lossy coding of the \emph{same} underlying automaton. But $\Lambda$ is \emph{not}
+monotone in $|FE|$ across families (the ruler has $\Lambda=35$, $|FE|=113$; the singleton
+$\mathbb Z_4$ coding has $\Lambda=28$, $|FE|=698$ -- larger $|FE|$, smaller $\Lambda$),
+and nothing in the theorem bounds $\Lambda$ itself. Since $\Lambda\le2^{\min(\gamma,m^3)}$
+for a related quantity $\gamma$ that is not otherwise controlled, the unconditional
+content of Theorem~\ref{thm:lambda} is $|FE| = 2^{O(m^3)}$ -- \emph{weaker} than the
+literature's $2^{9m^2}$ (Khodier 2026), not an improvement on it. The referee pass is
+explicit that Theorem~5.4, taken as a bound, is a reparametrisation of the obstruction,
+not a solution; its real value is $\Lambda$ as a cheap, engine-free predictor computed
+without ever building $FE$.
+
+\subsection{Not proved: the coding-lead is not closed}
+
+An earlier draft of \texttt{proof-family.md} claimed that a level decomposition of the
+lossy-coding mechanism (Prop.\ 5.3: at bit-level $\kappa=v_2(j-i)$ the effective coding is
+$\chi_{\min(\kappa,p-1)}$, saturating at the identity coding by level $p-2$) ``closes''
+the lossy-coding lead as a route to exponential blowup. The referee pass identifies this
+as \textbf{circular}: level $0$ of the grading \emph{is} the original singleton-coded
+predicate $FE_{T_p}$ restricted to odd differences, so the argument's conclusion --
+``$|FE_{T_p}|$ is not exponential unless some single level is already exponential'' --
+reduces to ``$|FE_{T_p}|$ is not exponential unless $|FE_{T_p}|$ is exponential.'' There
+is also an unaddressed possibility that the $p$ levels combine multiplicatively rather
+than additively (the msd automaton cannot in general read off $\kappa=v_2(j-i)$ from a
+bounded prefix), which is exactly the shape an exponential family would take; this does
+not happen in the data measured so far, but that is a measurement, not a proof. No upper
+bound of any kind for $|FE_{T_p}|$ exists in any of the three source documents. The
+correct summary, per the referee verdict, is: the level decomposition is a correct
+structural fact about $FE_{G_p}$'s coding, and it is \emph{not} a proof that lossy-coded
+group automata cannot be an exponential family.
+
+\subsection{Gaps, stated explicitly}
+
+\begin{itemize}
+\item \textbf{Open Problem 1(A) is not answered by this paper.} No family with
+provably exponential $|FE|$ relative to $m$ is exhibited, in either direction. Theorem~\ref{thm:gp}
+is evidence \emph{against} exponential blowup for one natural family; it is not a
+resolution of the general question.
+\item \textbf{No upper bound smaller than $2^{9m^2}$ is proved.} Theorem~\ref{thm:lambda}'s
+unconditional content is $2^{O(m^3)}$, strictly weaker than the literature bound it was
+hoped to improve on.
+\item \textbf{$|FE_{T_p}|$'s growth exponent is open}, not $4$ as an earlier fit
+suggested (\S\ref{sec:results}); the decisive data point ($p=9$, msd) exceeds the $6$~GB
+memory guard.
+\item \textbf{The closed forms $p^3+8$ and $2p^2+3p+12$ are machine-verified for
+$3\le p\le24$, not proved for all $p$.} The construction underlying them is proved
+correct as a design from the exact characterisation (Cor.\ 3.5), but was brute-force
+cross-checked only to $p\le6$; values for $17\le p\le24$ rest on a single implementation.
+\item \textbf{The extremal-family claim in the random-tail direction is data-limited.}
+A separately measured extremal ladder-construction champion at $m=5$
+(\texttt{def T 2 5 0 01 22 33 44 10 11110}) resolves at $|FE|=3846$ msd, beating the
+$1200$-sequence sample champion ($2415$) by $1.6\times$ and continuing the family beyond
+$m=4$ ($1152$); but only three points ($15$, $1152$, $3846$ at $m=3,4,5$) are available,
+their consecutive $\log_2$ increments are $4.14, 2.13, 1.74$ -- falling, but slowly enough
+that this is not decisive evidence either for or against a bounded-exponent law, and
+$m=6,7$ for this specific family remain unmeasured.
+\end{itemize}
+
+\section{Conjecture}
+\label{sec:conjecture}
+
+\begin{conjecture}
+For every $k$-automatic sequence $T$ produced by a minimal $m$-state DFAO,
+$|FE(T)|_{\mathrm{msd}} = O(m^4)$.
+\end{conjecture}
+
+\textbf{Honest confidence: low-to-moderate, and explicitly not the position of Khodier's
+thesis, which states the opposite belief.} In favour: every random-ensemble median
+through $m=7$ (\S\ref{sec:results}) is polynomial with exponent $3.2$--$3.8$; every
+structured family measured (thin sets, pattern-containment, faithful group codings) is
+polynomial; the one proved infinite family (Theorem~\ref{thm:gp}) is exactly cubic; and
+$\log_2(\max)/m$ falls, not rises, with $m$ across the whole random ensemble. Against: the
+sweep only reaches $m\le7$ and $11$ sequences remain permanently unresolved in exactly the
+cell ($k=3,m=7$) where an exponential family would have to live; the one family whose
+exponent is empirically \emph{not} settled ($T_p$, singleton coding of a group automaton)
+is precisely the family the field's one lead points at, and its exponent could be $3$,
+$4$, or -- unproved to be excluded -- unbounded; and no unconditional polynomial upper
+bound exists for any family, only the $2^{O(m^3)}$ bound of Theorem~\ref{thm:lambda},
+which is weaker than the known $2^{9m^2}$. This conjecture should be read as ``no evidence
+found for the exponential belief, in a large but bounded search,'' not as a claim that the
+belief is wrong.
+
+\section{Limitations}
+\label{sec:limitations}
+
+\begin{itemize}
+\item The random ensemble is drawn from one sampler (PRISM) of admissible morphisms and
+reaches only $m\le7$; a single adversarial family well outside this distribution would
+settle Open Problem 1(A) regardless of the ensemble's shape.
+\item $11$ sequences (all in $k=3,m=7$) remain still-censored after five rescue passes and
+several hours of machine time; they are the natural place to look next.
+\item The construction-strategy benchmark (\S\ref{sec:construction}) compares one
+predicate family (equality of factors) between two tools at one memory ceiling; it is
+explicitly stated in \texttt{bench/README.md} not to be a general claim of superiority
+over Walnut, which received no expert reformulation.
+\item The $3p^4$ fit for $T_p$ was retracted after independent review found a $28\%$
+error at $p=3$ and a falling local exponent; readers of earlier internal documents
+(\texttt{docs/TARGET1.md}) should treat that number as superseded by
+\S\ref{sec:results} of this paper.
+\item The $\Lambda$ invariant (Theorem~\ref{thm:lambda}) is not itself known to be
+polynomial in $m$; its unconditional bound is weaker than the pre-existing literature
+bound, and its value here is as a cheap empirical predictor, not a proof technique for
+Open Problem 1(A) in either direction.
+\end{itemize}
+
+\section{Reproducibility}
+\label{sec:repro}
+
+All numbers in this paper trace to committed artefacts.
+
+\begin{itemize}
+\item \textbf{Engine:} \texttt{engine/} (Rust; \texttt{cargo build --release}), driven
+only via \texttt{explore/engine.py} (\texttt{engine.run} / \texttt{engine.pool}), never
+raw \texttt{subprocess} with multiple workers (\texttt{docs/GUARD.md}).
+\item \textbf{Random ensemble:} \texttt{explore/blowup.py} (first pass),
+\texttt{explore/blowup\_retry.py} (lsd rescue), residue passes for the double-failure
+tail; merged by \texttt{explore/final\_table.py} into
+\texttt{results/final\_table.json}, tabulated in \texttt{docs/TARGET1-TABLE.md}.
+\item \textbf{Structured families:} \texttt{explore/thin\_families.py},
+\texttt{explore/thin\_families2.py}, \texttt{explore/struct\_families.py},
+\texttt{explore/gtm\_full.py}, \texttt{explore/blowup\_features.py}.
+\item \textbf{Walnut benchmark:} \texttt{bench/walnut\_fe.py}, results and fairness
+caveats in \texttt{bench/README.md}.
+\item \textbf{Theory:} \texttt{paper/proof-upper.md}, \texttt{paper/proof-family.md},
+\texttt{paper/proof-lower.md}; machine checks in
+\texttt{paper/proof-upper-check.py} and \texttt{paper/verdict-checks/}
+(\texttt{fam\_check.py}, \texttt{thm44.py}, \texttt{prop51.py}, \texttt{exh\_nonbin.py});
+the full adversarial referee pass is \texttt{paper/proof-verdict.md}, whose one-line
+verdict per document and per-lemma status table this section summarizes.
+\item \textbf{Guard infrastructure:} \texttt{docs/GUARD.md}, \texttt{explore/memguard.sh}.
+\end{itemize}
+
+To reproduce the referee's independent checks:
+\begin{verbatim}
+cd /Users/andrew/maths
+.venv/bin/python paper/proof-upper-check.py
+.venv/bin/python paper/verdict-checks/fam_check.py
+.venv/bin/python paper/verdict-checks/thm44.py
+.venv/bin/python paper/verdict-checks/prop51.py
+.venv/bin/python paper/verdict-checks/exh_nonbin.py 3
+.venv/bin/python paper/verdict-checks/exh_nonbin.py 4
+\end{verbatim}
+
+\section*{Acknowledgements}
+This work is a direct response to Open Problem 1 of Mazen Khodier's 2026 thesis, and the
+Tribonacci construction anecdote reported there motivated the digit-order-artefact
+investigation in \S\ref{sec:results}.
+
+\begin{thebibliography}{9}
+
+\bibitem{khodier2026}
+M.\ Khodier, \emph{New Methods for Analyzing the Properties of Automatic Sequences},
+PhD thesis, University of Waterloo, January 2026.
+
+\bibitem{kss2025}
+M.\ Khodier, L.\ Schaeffer, J.\ Shallit, ``Self-verifying predicates in B\"uchi
+arithmetic,'' arXiv:2507.19717 [cs.FL], 2025; also in \emph{IWAA 2026}, LNCS 15981,
+pp.\ 237--251.
+
+\bibitem{crs2012}
+\'E.\ Charlier, N.\ Rampersad, J.\ Shallit, ``Enumeration and decidable properties of
+automatic sequences,'' \emph{International Journal of Foundations of Computer Science}
+23 (2012), 1035--1066. arXiv:1102.3698.
+
+\bibitem{schaeffer2013}
+L.\ Schaeffer, \emph{Deciding properties of automatic sequences}, MMath thesis,
+University of Waterloo, 2013.
+
+\bibitem{gss2013}
+D.\ Go\v{c}, L.\ Schaeffer, J.\ Shallit, ``The subword complexity of $k$-automatic
+sequences is $k$-synchronized,'' DLT 2013. arXiv:1206.5352.
+
+\bibitem{shallit2023}
+J.\ Shallit, \emph{The Logical Approach to Automatic Sequences: Exploring
+Combinatorics on Words with Walnut}, LMS Lecture Note Series 482, Cambridge University
+Press, 2023.
+
+\end{thebibliography}
+
+\end{document}
