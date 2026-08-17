@@ -1,5 +1,17 @@
 # Research produced with Peanut
 
+## Declaration of AI usage (applies to everything in this folder)
+
+All of this was produced with substantial use of a large language model — Claude (Anthropic,
+model `claude-fable-5`) via the Claude Code agent framework — directed by Andrew Hingston. The
+model did the literature searches, designed and implemented Peanut, searched for and proved
+the results, ran the adversarial referee passes (also the model, with independently written
+brute-force checks sharing no code with Peanut), and drafted the write-ups, which are mostly
+its output lightly edited. The author chose the problems, directed the work, ran the
+computations, and takes responsibility for every statement. The first version of the
+linear-subsequence note (17 Aug 2026) omitted this declaration; v2 (18 Aug) adds it. Any note
+or claim taken from here should carry this declaration with it.
+
 Everything here was produced with the engine in this repository, then **adversarially
 refereed** by an independent pass (own brute-force code, hand re-derivation, counterexample
 search, primary-source re-check). The referee reports are in `referee-verdicts/` and are the

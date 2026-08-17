@@ -52,7 +52,7 @@ linear subsequences of automatic sequences}
 \author{Andrew Hingston}
 \email{\texttt{hingstonandrew@icloud.com}}
 
-\date{\today}
+\date{18 August 2026 (v2: adds the declaration of AI usage; mathematics unchanged from v1 of 17 August)}
 
 \subjclass[2020]{68Q45, 68R15, 11B85}
 \keywords{automatic sequence, state complexity, factor complexity, generalised
@@ -363,7 +363,7 @@ realises the fraction $(1 - \tfrac1{3m})/2 \in [\tfrac5{12}, \tfrac12)$: Corolla
 tight in the shape $nm^2$, loose only in the factor $k$ (cf.\ Theorem~\ref{thmC}).
 \end{remark}
 
-\section{Verification}
+\section{Verification}\label{sec:verify}
 \label{sec:verif}
 
 Theorem~\ref{thmA} is a proof, conditional only on the two literature inputs
@@ -499,10 +499,22 @@ $knm^2$ is a real but bounded effect that vanishes as $m$ grows. (iii) The case 
 i.e.\ $(h(ni+c))_{i\ge0}$ and \cite[Cor.~10(b)]{MRS}: only $c = 0$ is treated here, that
 being what Problem~\ref{op1} asks.
 
-\subsection*{Acknowledgement}
-Computations were performed with Peanut, an open-source decision procedure for automatic
-sequences written by the author; the argument was checked by independent brute-force
-implementations.
+\subsection*{Acknowledgement and declaration of AI usage}
+This note, and the work behind it, were produced with substantial use of a large language
+model, and the first version circulated (17 August 2026) failed to say so; the author
+apologises for that omission. Precisely: the model was Claude (Anthropic; model
+\texttt{claude-fable-5}), used through the Claude Code agent framework, and it was used for
+(i) the literature and prior-art search; (ii) the design and implementation of Peanut, the
+open-source decision procedure with which every computation here was run; (iii) the search
+for the family, the formulation of Lemmas~\ref{lemA}--\ref{lemB} and Theorem~\ref{thmA}, and
+their proofs; (iv) an adversarial ``referee'' pass, also carried out by the model, which
+re-derived each step, wrote independent brute-force checks sharing no code with Peanut, and
+tried to construct counterexamples; and (v) the drafting of this text, most of which is the
+model's output lightly edited by the author. The author directed the work, chose the
+problem, read and takes responsibility for every statement, and ran the computations. All
+finite claims were verified by the independent implementations described in
+Section~\ref{sec:verify}; the referee transcripts and code are public in the Peanut
+repository. Any errors are the author's.
 
 \begin{thebibliography}{9}
 \setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}\setlength{\parskip}{0pt}

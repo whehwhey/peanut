@@ -80,6 +80,10 @@ determinization ladder, the learner — are in `docs/ARCHITECTURE.md`.
 
 Peanut is named after the creator's son.
 
+## AI usage
+
+Peanut was designed and largely written with Claude (Anthropic, `claude-fable-5`) via Claude Code, directed by the author; see `research/README.md` for the full declaration covering the research results.
+
 ## Creator
 
 Andrew Hingston.
