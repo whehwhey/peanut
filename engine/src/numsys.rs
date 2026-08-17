@@ -60,6 +60,11 @@ pub struct NumSys {
     cnt: Vec<u64>,
     /// Whether a comparison automaton was loaded (vs. derived lexicographically).
     pub lt_loaded: bool,
+    /// `Some(k)` for base `-k` (`msd_neg_2`, ...).  A negative base is *not*
+    /// radix-ordered, so the rank machinery below does not define its values:
+    /// `rep`/`value`/`succ`/`self_check` all divert to [`crate::negbase`], and
+    /// the represented set is all of **Z** rather than **N**.
+    pub neg_base: Option<u32>,
 }
 
 impl NumSys {
@@ -96,6 +101,7 @@ impl NumSys {
 
     /// Canonical msd-first digit word of `n` (no leading zeros; `[0]` for `n = 0`).
     pub fn rep(&self, n: u64) -> Vec<usize> {
+        if let Some(b) = self.neg_base { return crate::negbase::rep(n as i64, b); }
         let mut len = 0usize;
         while len <= MAXLEN && self.cnt(0, len) <= n { len += 1; }
         if len == 0 { len = 1; }
@@ -124,6 +130,10 @@ impl NumSys {
     /// Value of an msd-first digit word, or `None` if the word is not valid
     /// (or its value overflows `u64`).
     pub fn value(&self, w: &[usize]) -> Option<u64> {
+        if self.neg_base.is_some() {
+            let v = self.value_i(w)?;
+            return if v >= 0 { Some(v as u64) } else { None };
+        }
         let len = w.len();
         let mut q = 0usize;
         let mut v: u64 = 0;
@@ -141,6 +151,24 @@ impl NumSys {
         Some(v)
     }
 
+    /// **Signed** value of an msd-first word.  Identical to [`NumSys::value`]
+    /// except in a negative base, where a word may denote a negative integer.
+    pub fn value_i(&self, w: &[usize]) -> Option<i64> {
+        match self.neg_base {
+            Some(b) => crate::negbase::value(w, b),
+            None => self.value(w).map(|v| v as i64),
+        }
+    }
+
+    /// Canonical msd-first word of a **signed** value, or `None` if the system
+    /// does not represent negative integers.
+    pub fn rep_i(&self, n: i64) -> Option<Vec<usize>> {
+        match self.neg_base {
+            Some(b) => Some(crate::negbase::rep(n, b)),
+            None => if n < 0 { None } else { Some(self.rep(n as u64)) },
+        }
+    }
+
     /// Number of digits in the canonical representation of `n`.
     pub fn replen(&self, n: u64) -> usize { self.rep(n).len() }
 
@@ -150,6 +178,17 @@ impl NumSys {
     /// width.
     pub fn succ(&self, w: &mut [usize], vst: &mut [u32]) -> Option<usize> {
         let width = w.len();
+        if let Some(b) = self.neg_base {
+            // Radix order is not numeric order here, so step through the values.
+            let next = crate::negbase::rep(crate::negbase::value(w, b)? + 1, b);
+            if next.len() > width { return None; }
+            let mut nw = vec![0usize; width - next.len()];
+            nw.extend(next);
+            let p = (0..width).find(|&i| nw[i] != w[i]);
+            w.copy_from_slice(&nw);
+            vst.copy_from_slice(&self.vstates(w));
+            return p.or(Some(width - 1));
+        }
         for p in (0..width).rev() {
             let q = vst[p] as usize;
             for e in (w[p] + 1)..self.digits {
@@ -208,6 +247,7 @@ impl NumSys {
     /// (a negative base, say) would silently give wrong answers everywhere, because
     /// values here are ranks and comparison defaults to lexicographic.
     pub fn self_check(&self) -> Result<(), String> {
+        if self.neg_base.is_some() { return self.self_check_signed(); }
         for n in 0..=200u64 {
             let r = self.rep(n);
             match self.value(&r) {
@@ -235,6 +275,50 @@ rank ordering disagree", self.name, n, other, n)),
                     return Err(format!("{}: comparison automaton disagrees with {} < {}{}",
                                        self.name, x, y,
                                        if self.lt_loaded { "" } else { " (derived lexicographically)" }));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Signed analogue of [`NumSys::padded`]: msd words for `vals`, all of the
+    /// same length, using the signed representation.
+    fn padded_i(&self, vals: &[i64]) -> Option<Vec<Vec<usize>>> {
+        let reps: Vec<Vec<usize>> = vals.iter().map(|&v| self.rep_i(v)).collect::<Option<_>>()?;
+        let len = reps.iter().map(|r| r.len()).max().unwrap();
+        Some(reps.into_iter().map(|r| {
+            let mut v = vec![0usize; len - r.len()];
+            v.extend(r);
+            v
+        }).collect())
+    }
+
+    /// The load-time coherence check for a system that represents negative
+    /// integers (a negative base): value/rep round-trip over a signed window,
+    /// and the adder/comparator against `i64` arithmetic on signed operands.
+    fn self_check_signed(&self) -> Result<(), String> {
+        for n in -200i64..=200 {
+            let r = self.rep_i(n).ok_or_else(|| format!("{}: no representation of {}", self.name, n))?;
+            match self.value_i(&r) {
+                Some(v) if v == n => {}
+                other => return Err(format!("{}: value(rep({})) = {:?}, not {}", self.name, n, other, n)),
+            }
+        }
+        for x in -20i64..=20 {
+            for y in -20i64..=20 {
+                let p = self.padded_i(&[x, y, x + y]).unwrap();
+                if !self.run_msd(&self.add_msd, &[&p[0], &p[1], &p[2]]) {
+                    return Err(format!("{}: addition automaton rejects {} + {} = {}",
+                                       self.name, x, y, x + y));
+                }
+                let q = self.padded_i(&[x, y, x + y + 1]).unwrap();
+                if self.run_msd(&self.add_msd, &[&q[0], &q[1], &q[2]]) {
+                    return Err(format!("{}: addition automaton accepts {} + {} = {}",
+                                       self.name, x, y, x + y + 1));
+                }
+                let c = self.padded_i(&[x, y]).unwrap();
+                if self.run_msd(&self.lt_msd, &[&c[0], &c[1]]) != (x < y) {
+                    return Err(format!("{}: comparison automaton disagrees with {} < {}", self.name, x, y));
                 }
             }
         }
@@ -314,7 +398,13 @@ fn parse_alphabet(line: &str, expect_digits: Option<usize>) -> Result<(Vec<usize
             let st = i;
             while i < b.len() && !b[i].is_whitespace() { i += 1; }
             let tok: String = b[st..i].iter().collect();
-            let d = expect_digits.ok_or_else(|| format!(
+            // `msd_2` / `lsd_3` / `msd_neg_2` name their own digit count; anything
+            // else (`msd_fib`, `msd_pell`, ...) needs the caller to supply it.
+            let inferred = tok.strip_prefix("msd_").or_else(|| tok.strip_prefix("lsd_"))
+                .map(|t| t.strip_prefix("neg_").unwrap_or(t))
+                .and_then(|t| t.parse::<usize>().ok())
+                .filter(|&d| d >= 2);
+            let d = expect_digits.or(inferred).ok_or_else(|| format!(
                 "alphabet token {:?} names a number system; load it with an explicit digit count", tok))?;
             names.push(tok);
             sizes.push(d);
@@ -470,6 +560,13 @@ fn lex_less_than(digits: usize) -> Dfa {
 /// Build a numeration system from the parsed validity / addition / (optional)
 /// comparison automata.
 pub fn build(name: &str, valid: &Parsed, add: &Parsed, lt: Option<&Parsed>) -> Result<NumSys, String> {
+    build_ext(name, valid, add, lt, None)
+}
+
+/// As [`build`], but with `neg_base = Some(k)` for base `-k`, whose values are
+/// signed weighted sums rather than ranks (see [`crate::negbase`]).
+pub fn build_ext(name: &str, valid: &Parsed, add: &Parsed, lt: Option<&Parsed>,
+                 neg_base: Option<u32>) -> Result<NumSys, String> {
     if valid.ntracks != 1 { return Err("validity automaton must have 1 track".into()); }
     if add.ntracks != 3 { return Err("addition automaton must have 3 tracks".into()); }
     let digits = valid.digits;
@@ -523,7 +620,7 @@ pub fn build(name: &str, valid: &Parsed, add: &Parsed, lt: Option<&Parsed>) -> R
     let ns = NumSys {
         name: name.to_string(), digits,
         valid_msd, add_msd, lt_msd, valid_lsd, add_lsd, lt_lsd,
-        vn, vt, vacc, cnt, lt_loaded: lt.is_some(),
+        vn, vt, vacc, cnt, lt_loaded: lt.is_some(), neg_base,
     };
     ns.self_check()?;
     Ok(ns)
@@ -557,6 +654,27 @@ fn find(name: &str, suffix: &str) -> Option<std::path::PathBuf> {
 
 /// Load the numeration system called `name` from the search path.
 pub fn load(name: &str) -> Result<NumSys, String> {
+    if let Some(b) = crate::negbase::base_of(name) {
+        // Shipped files if they are on the search path (so `msd_neg_2.txt` &c.
+        // stay the single source of truth and stay Walnut-loadable), otherwise
+        // the same automata generated on the spot for any k >= 2.
+        let (v, a, l) = match (find(name, ".txt"), find(name, "_addition.txt"), find(name, "_less_than.txt")) {
+            (Some(vp), Some(ap), Some(lp)) => {
+                let rd = |p: &std::path::PathBuf| std::fs::read_to_string(p)
+                    .map_err(|e| format!("{}: {}", p.display(), e));
+                let v = parse_walnut(&rd(&vp)?, None).map_err(|e| format!("{}: {}", vp.display(), e))?;
+                let a = parse_walnut(&rd(&ap)?, Some(v.digits)).map_err(|e| format!("{}: {}", ap.display(), e))?;
+                let l = parse_walnut(&rd(&lp)?, Some(v.digits)).map_err(|e| format!("{}: {}", lp.display(), e))?;
+                (v, a, l)
+            }
+            _ => crate::negbase::parsed(b)?,
+        };
+        if v.digits != b as usize {
+            return Err(format!("{}: validity automaton has {} digits, base -{} needs {}",
+                               name, v.digits, b, b));
+        }
+        return build_ext(name, &v, &a, Some(&l), Some(b));
+    }
     let vp = find(name, ".txt").ok_or_else(|| format!(
         "no validity automaton for {:?} (looked for {0}.txt / msd_{0}.txt in {:?})",
         name, search_dirs()))?;

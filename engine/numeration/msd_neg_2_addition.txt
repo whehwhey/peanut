@@ -1,0 +1,24 @@
+# msd_neg_2_addition: (x,y,z) with x + y = z in base -2.
+# State = t, the value of the prefix read so far in the recurrence
+#   t_p = (x_p + y_p - z_p) - 2 * t_(p+1),   t_L = 0,   accept iff t_0 = 0.
+# state 0 = t 0 (accepting), state 1 = t -1, state 2 = t +1.
+
+{0,1} {0,1} {0,1}
+
+0 1
+0 0 0 -> 0
+0 0 1 -> 1
+0 1 0 -> 2
+0 1 1 -> 0
+1 0 0 -> 2
+1 0 1 -> 0
+1 1 1 -> 2
+
+1 0
+0 0 1 -> 2
+
+2 0
+0 1 0 -> 1
+1 0 0 -> 1
+1 1 0 -> 0
+1 1 1 -> 1

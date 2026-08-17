@@ -1,0 +1,8 @@
+# msd_neg_2: base -2, digits {0..1}, place values (-2)^i.
+# Every word is a representation, so the language is all of {0..1}*.
+
+{0,1}
+
+0 1
+0 -> 0
+1 -> 0

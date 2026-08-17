@@ -244,7 +244,7 @@ canvas.tape-canvas:active { cursor: grabbing; }
   font-family: var(--mono); font-size: 11px; color: var(--ink-3);
   border: 1px solid var(--rule); border-radius: 999px; padding: 1px 9px;
 }
-.view-head p { margin: 0; color: var(--ink-2); max-width: 62ch; }
+.view-head p { margin: 0; color: var(--ink-2); max-width: 62ch; min-width: 0; flex-basis: 100%; }
 
 .panel {
   background: var(--panel);
@@ -254,6 +254,9 @@ canvas.tape-canvas:active { cursor: grabbing; }
   box-shadow: var(--shadow);
 }
 .grid2 { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) minmax(0, 340px); align-items: start; }
+.grid2 > * { min-width: 0; }   /* grid items default to min-content width: without this a
+  panel holding a nowrap row (e.g. the "Find every occurrence" button) refuses to shrink
+  below that row's width and overflows its track -- same fix as `.body > *` above. */
 .grid-half { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .row.tight { gap: 6px; }

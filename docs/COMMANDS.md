@@ -356,6 +356,111 @@ automatically if a script doesn't end with it.
 ERR unknown command "foo"
 ```
 
+### `transducer NAME @file`  /  `transducer NAME D q0:t/o,t/o,.. ..`
+
+Loads a **finite-state transducer** -- a deterministic, 1-uniform, all-states-final
+machine that rewrites a sequence letter by letter while carrying a state
+(`y_n = sigma(p_n, x_n)`, `p_{n+1} = tau(p_n, x_n)`). `@file` is Walnut's
+`Transducer Library` format verbatim, so `RUNSUM2.txt` &c. load unchanged; the
+inline form gives one `target/output` pair per input letter of `{0..D-1}`. State
+0 (the first declared) is the initial state; the machine must be total.
+Transducers live in their own namespace and are not cleared by `def`/`dfao`.
+
+```
+> transducer RUNSUM2 @walnut7/Transducer Library/RUNSUM2.txt
+OK transducer RUNSUM2 states=2 alphabet=[0, 1]
+> transducer XOR 2 0:1/0,2/0 1:1/0,2/1 2:1/1,2/0
+OK transducer XOR states=3 alphabet=[0, 1]
+```
+
+Failure: `ERR transducer <parse error>`; `ERR transducer state q has no transition
+on input a (a transducer must be total)`.
+
+### `transduce NEW TRANS SEQ`
+
+Applies transducer `TRANS` to the current sequence (`SEQ` must be `T` or the
+sequence's own name) by the Dekking (1994) construction, and makes the result the
+new current sequence under the name `NEW`. Clears all `let`/`learnfe` defs, like
+`def`. Works under any active numeration system: the DFAO is crossed with the
+validity automaton first, so only digits the system allows are morphism edges and
+only *accepting* nodes carry a letter. Full note: `docs/BREADTH.md`.
+
+```
+> def T 2 2 0 01 10 01
+> transduce NEWT RUNSUM2 T
+OK transduce NEWT states=8 lsd_states=7 from=T via=RUNSUM2 ms=0
+> seq 30
+SEQ n=30 k=2 010011101110010011100100010011
+```
+
+Failure: `ERR no sequence`; `ERR transduce: no transducer "X"`;
+`ERR transduce sequence letter L is outside the transducer's input alphabet [..]`.
+
+### `negbase K`
+
+Generates the numeration system **base -K** (digits `{0..K-1}`, place values
+`(-K)^i`) and writes `msd_neg_K.txt`, `msd_neg_K_addition.txt` and
+`msd_neg_K_less_than.txt` into `engine/numeration/`. `numsys neg_K` then loads it
+(and generates the same automata in memory if no file is on the search path).
+
+Every integer, negative ones included, has exactly one representation, so
+**`msd_neg_K` quantifies over Z**:
+
+```
+> negbase 2
+OK negbase -2 wrote .../msd_neg_2.txt .../msd_neg_2_addition.txt .../msd_neg_2_less_than.txt
+> numsys neg_2
+OK numsys neg_2 digits=2 valid=1 add=4 lt=loaded weights=1,-2,4,-8,16,-32,64,-128,...
+> ? E x . x+1 = 0
+TRUE states=1 peak=12 ms=0 :: E x . x+1 = 0
+```
+
+Caveat: `witness`/`enum`/`?` decode a tuple back to numbers through
+`numsys::decode_word`, which is unsigned, so **negative witnesses are skipped**
+in the displayed list. Truth values and automata are unaffected. See
+`docs/BREADTH.md` §2.
+
+### `ost NAME [preperiod] [period]`
+
+Generates the **Ostrowski numeration system** of the quadratic irrational
+`alpha = [0; preperiod, bar(period)]` -- validity and adder -- into
+`engine/numeration/msd_NAME.txt` and `msd_NAME_addition.txt`, same syntax and same
+continued-fraction normalisation as Walnut's `ost`. `numsys NAME` then loads it.
+
+```
+> ost ostpell [] [2]
+OK ost ostpell valid=3 add=12 weights=1,2,5,12,29,70,169,408,985 wrote ...
+> ost ost13 [0 3 1] [1 2]
+OK ost ost13 valid=12 add=61 weights=1,3,4,7,18,25,68,93,254 wrote ...
+```
+
+`[] [1]` reproduces Zeckendorf and `[] [2]` reproduces Pell (`alpha = sqrt(2)-1`).
+Both automata are language-identical to Walnut's; `docs/BREADTH.md` §3 has the
+construction and the verification.
+
+Failure: `ERR ost the period cannot be empty`; `ERR ost all continued-fraction
+partial quotients must be positive`; `ERR ost Ostrowski adder: the carry cap N binds`.
+
+### `walnut` / `walnut on` / `walnut off`
+
+Toggles Walnut-compatibility mode: while it is on, every line is parsed and run as
+a **Walnut** command (`eval`/`def`/`reg`/`morphism`/…, `Word Automata Library/`
+lookups, `?msd_k`/`?msd_fib`/… number-system prefixes) instead of the native
+grammar above, and results print as `WOK`/`WERR` lines. A line whose first word is
+a Walnut command *and* contains `?msd_`/`?lsd_` turns the mode on automatically, so
+a Walnut script can be piped in with no preamble; `quit`/`exit` end the session as
+usual regardless of mode. Full design note, grammar and the differential-test
+results against real Walnut: `docs/WALNUT-COMPAT.md`.
+
+```
+> walnut
+OK walnut on root=/Users/andrew/maths/walnut7
+> eval sq "?msd_fib Ei,n (n>=1) & (Aj (j<n) => F[i+j]=F[i+j+n])":
+WOK eval sq states=1 vars=[] verdict=TRUE ms=41
+> walnut off
+OK walnut off root=/Users/andrew/maths/walnut7
+```
+
 ## Formula grammar
 
 Sentences are parsed by `engine/src/logic.rs` (`Parser`/`Ast`) over the current

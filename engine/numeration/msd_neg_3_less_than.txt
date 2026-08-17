@@ -1,0 +1,39 @@
+# msd_neg_3_less_than: (x,y) with x < y in base -3.
+# The first differing digit decides, and every later digit flips the verdict,
+# because consecutive place values have opposite signs.
+# state 0 = equal so far, state 1 = x < y (accepting), state 2 = x > y.
+
+{0,1,2} {0,1,2}
+
+0 0
+0 0 -> 0
+0 1 -> 1
+0 2 -> 1
+1 0 -> 2
+1 1 -> 0
+1 2 -> 1
+2 0 -> 2
+2 1 -> 2
+2 2 -> 0
+
+1 1
+0 0 -> 2
+0 1 -> 2
+0 2 -> 2
+1 0 -> 2
+1 1 -> 2
+1 2 -> 2
+2 0 -> 2
+2 1 -> 2
+2 2 -> 2
+
+2 0
+0 0 -> 1
+0 1 -> 1
+0 2 -> 1
+1 0 -> 1
+1 1 -> 1
+1 2 -> 1
+2 0 -> 1
+2 1 -> 1
+2 2 -> 1

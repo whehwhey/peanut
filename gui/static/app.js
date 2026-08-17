@@ -2060,6 +2060,7 @@ async function selectSequence(entry) {
   Auto.load('T');
   Heat.data = null;
   Heat.draw();
+  $('feInfo').textContent = '—';
   Shapes.reset();
 }
 

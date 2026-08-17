@@ -35,6 +35,16 @@
 
   await step('library loaded', async () =>
     `${P.S.seqs.length} sequences, ${P.S.examples.length} examples`);
+  await step('playground library click fills the editor', async () => {
+    P.show('playground');
+    const btn = document.querySelector('#library .libitem');
+    if (!btn) throw new Error('no library items rendered');
+    document.getElementById('editor').value = '';
+    btn.click();
+    const v = document.getElementById('editor').value;
+    if (!v) throw new Error('editor still empty after clicking ' + btn.textContent);
+    return v.slice(0, 60);
+  });
   await step('thue-morse tape', async () => {
     if (!P.S.seq.startsWith('0110100110010110')) throw new Error('prefix ' + P.S.seq.slice(0, 16));
     return P.S.seq.slice(0, 16);
@@ -294,7 +304,16 @@
     throw new Error(`scrollWidth ${de.scrollWidth} > ${de.clientWidth}; ` + over.slice(0, 8).join(' | '));
   });
 
-  // ?end=<view> leaves the app on a view for a screenshot; ?end=shapes/<pane> picks the tab
+  // ?end=<view> leaves the app on a view for a screenshot; ?end=shapes/<pane> picks the tab.
+  // ?w=<px> additionally clamps the root element to that width first: headless Chrome
+  // will not lay out a real viewport below ~500-600 CSS px (see the 360px-root check
+  // above), so a screenshot asked for at phone width silently renders at that floor and
+  // the requested narrower window-size just crops it. Forcing document.documentElement's
+  // width reproduces the real media query and flex/grid math at the requested width from
+  // a wider, floor-safe host viewport; the caller then crops the screenshot image itself
+  // down to that width.
+  const w = new URLSearchParams(location.search).get('w');
+  if (w) document.documentElement.style.width = w + 'px';
   const end = new URLSearchParams(location.search).get('end');
   if (end) {
     const [view, pane] = end.split('/');

@@ -7,6 +7,7 @@
 //! out without any framing beyond newlines. Always invoke this binary through
 //! that Python wrapper, never with unguarded parallel instances: several
 //! engines racing on the same machine can exhaust memory and lock it up.
+mod compat;
 mod dfa;
 mod numsys;
 mod base;
@@ -15,8 +16,11 @@ mod export;
 mod learn;
 mod logic;
 mod membudget;
+mod negbase;
+mod ostrowski;
 mod picture;
 mod progress;
+mod transducer;
 
 #[global_allocator]
 static GLOBAL: membudget::Budgeted = membudget::Budgeted;
@@ -98,16 +102,54 @@ fn parse_def(parts: &[&str]) -> Result<Dfao, String> {
     Dfao::from_morphism(k, m, &sigma, &coding, start, name)
 }
 
+/// Where generated numeration-system files go: the first directory on the
+/// numeration search path that exists, else `engine/numeration`.
+fn numsys_dir() -> std::path::PathBuf {
+    numsys::search_dirs().into_iter().find(|d| d.is_dir())
+        .unwrap_or_else(|| "engine/numeration".into())
+}
+
 fn main() {
     membudget::init();
     progress::init();
     let stdin = io::stdin();
     let mut cur: Option<Dfao> = None;
     let mut defs: logic::Defs = logic::Defs::new();
+    let mut trs: std::collections::HashMap<String, transducer::Transducer> = Default::default();
     let mut out = io::stdout();
+    let mut wal = compat::Compat::new();
     for line in stdin.lock().lines() {
         let line = match line { Ok(l) => l, Err(_) => break };
         let line = line.trim();
+        // --- Walnut-compatibility mode (docs/WALNUT-COMPAT.md) ---------------
+        // `walnut` toggles it; a line carrying a `?msd_`/`?lsd_` number-system
+        // prefix turns it on by itself, so a Walnut script runs unchanged.
+        if line == "walnut" || line.starts_with("walnut ") {
+            let arg = line[6..].trim();
+            wal.on = match arg { "on" => true, "off" => false, _ => !wal.on };
+            if !wal.on { if let Some(m) = wal.flush() { println!("{}", m); } }
+            println!("OK walnut {} root={}", if wal.on { "on" } else { "off" }, wal.root.display());
+            let _ = out.flush();
+            continue;
+        }
+        if !wal.on && (line.contains("?msd_") || line.contains("?lsd_")) {
+            // auto-detect, but only for something that really looks like a Walnut
+            // command -- a native command must never be swallowed by accident
+            let head = line.split_whitespace().next().unwrap_or("");
+            if compat::IS_WALNUT_CMD.contains(&head) { wal.on = true; }
+        }
+        if wal.on {
+            if line == "quit" || line == "exit" || line == "quit;" || line == "exit;" {
+                if let Some(m) = wal.flush() { println!("{}", m); }
+                break;
+            }
+            if let Some(reply) = wal.feed(line) {
+                if reply == "WQUIT" { break; }
+                if !reply.is_empty() { println!("{}", reply); }
+                let _ = out.flush();
+            }
+            continue;
+        }
         if line.is_empty() || line.starts_with('#') { continue; }
         let (cmd, rest) = match line.find(' ') {
             Some(i) => (&line[..i], line[i + 1..].trim()),
@@ -146,7 +188,12 @@ fn main() {
                 } else {
                     match numsys::load(arg) {
                         Ok(n) => {
-                            let w: Vec<String> = (0..8).map(|l| n.weight(l).to_string()).collect();
+                            // In a negative base the place values are (-k)^l, not the
+                            // word counts the rank machinery reports.
+                            let w: Vec<String> = match n.neg_base {
+                                Some(b) => (0..8u32).map(|l| (-(b as i128)).pow(l).to_string()).collect(),
+                                None => (0..8).map(|l| n.weight(l).to_string()).collect(),
+                            };
                             println!("OK numsys {} digits={} valid={} add={} lt={} weights={},...",
                                      n.name, n.digits, n.valid_msd.nstates, n.add_msd.nstates,
                                      if n.lt_loaded { "loaded" } else { "lexicographic" }, w.join(","));
@@ -229,6 +276,91 @@ fn main() {
                 }
                 println!("FEMAP i0={} j0={} size={} l={} ms={} rows={}",
                          i0, j0, size, l, t0.elapsed().as_millis(), rows.join(","));
+            }
+            "transducer" => {
+                // transducer NAME @file          -- Walnut "Transducer Library" format
+                // transducer NAME D q:t/o,t/o ..  -- the same machine typed inline
+                let r = (|| -> Result<transducer::Transducer, String> {
+                    let rest = rest.trim();
+                    let cut = rest.find(char::is_whitespace)
+                        .ok_or("usage: transducer NAME @file | transducer NAME D q0:t/o,.. ..")?;
+                    let (name, tail) = (&rest[..cut], rest[cut..].trim());
+                    if let Some(path) = tail.strip_prefix('@') {
+                        let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {}", path, e))?;
+                        transducer::parse(name, &text)
+                    } else {
+                        transducer::parse_inline(name, &tail.split_whitespace().collect::<Vec<_>>())
+                    }
+                })();
+                match r {
+                    Ok(t) => {
+                        println!("OK transducer {} states={} alphabet={:?}", t.name, t.nstates, t.letters);
+                        trs.insert(t.name.clone(), t);
+                    }
+                    Err(e) => println!("ERR transducer {}", e),
+                }
+            }
+            "transduce" => {
+                // transduce NEW TRANS SEQ -- Dekking-style transduction; the
+                // result becomes the current sequence.
+                let p: Vec<&str> = rest.split_whitespace().collect();
+                if p.len() < 3 { println!("ERR usage: transduce NEW TRANSDUCER SEQ"); continue }
+                let Some(d) = &cur else { println!("ERR no sequence"); continue };
+                let src = p[2].trim_start_matches('$');
+                if src != "T" && src != d.name {
+                    println!("ERR transduce: {:?} is not the current sequence ({})", src, d.name);
+                    continue;
+                }
+                let Some(t) = trs.get(p[1]) else {
+                    println!("ERR transduce: no transducer {:?} (have: {})", p[1],
+                             trs.keys().cloned().collect::<Vec<_>>().join(", "));
+                    continue;
+                };
+                let t0 = Instant::now();
+                match transducer::transduce(d, t, p[0]) {
+                    Ok(n) => {
+                        println!("OK transduce {} states={} lsd_states={} from={} via={} ms={}",
+                                 n.name, n.nstates, n.lnstates, d.name, t.name, t0.elapsed().as_millis());
+                        defs.clear();
+                        cur = Some(n);
+                    }
+                    Err(e) => println!("ERR transduce {}", e),
+                }
+            }
+            "negbase" => {
+                // negbase K -- write msd_neg_K{,_addition,_less_than}.txt
+                let k: u32 = rest.split_whitespace().next().and_then(|x| x.parse().ok()).unwrap_or(0);
+                if k < 2 { println!("ERR usage: negbase K   (K >= 2, the system is base -K)"); continue }
+                match negbase::write_files(k, &numsys_dir()) {
+                    Ok(paths) => println!("OK negbase -{} wrote {}", k, paths.join(" ")),
+                    Err(e) => println!("ERR negbase {}", e),
+                }
+            }
+            "ost" => {
+                // ost NAME [preperiod] [period] -- an Ostrowski numeration system
+                match (|| -> Result<String, String> {
+                    let name = rest.split_whitespace().next()
+                        .ok_or("usage: ost NAME [preperiod] [period]")?.to_string();
+                    let mut groups: Vec<Vec<u32>> = Vec::new();
+                    let mut it = rest.char_indices();
+                    while let Some((i, c)) = it.next() {
+                        if c != '[' { continue }
+                        let j = rest[i..].find(']').ok_or("unterminated [")? + i;
+                        groups.push(rest[i + 1..j].split(|c: char| c == ',' || c.is_whitespace())
+                            .filter(|t| !t.is_empty())
+                            .map(|t| t.parse::<u32>().map_err(|_| format!("bad partial quotient {:?}", t)))
+                            .collect::<Result<_, _>>()?);
+                        while let Some((x, _)) = it.next() { if x >= j { break } }
+                    }
+                    if groups.len() != 2 { return Err("usage: ost NAME [preperiod] [period]".into()); }
+                    let (paths, vs, as_, w) = ostrowski::generate(&name, &groups[0], &groups[1], &numsys_dir())?;
+                    Ok(format!("OK ost {} valid={} add={} weights={} wrote {}", name, vs, as_,
+                               w.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(","),
+                               paths.join(" ")))
+                })() {
+                    Ok(m) => println!("{}", m),
+                    Err(e) => println!("ERR ost {}", e),
+                }
             }
             "pic" => println!("{}", picture::cmd(cur.as_ref(), &defs, rest)),
             "?" | "eval" => {
