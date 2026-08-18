@@ -37,11 +37,13 @@ Walnut's default strategy only, and is withdrawn. What remains true:
    sweep tail (tail-a/b/c) but fails single6 and every Tribonacci query; BRZ variants finish the
    singleton family and Tribonacci but OOM on the tail. Walnut's own help says "you may need to
    try them all". Peanut's one default (small forward cap -> Brzozowski -> escalate) finished
-   all of them without a per-query choice. That is a defaults/ergonomics difference, not an
-   algorithmic one — the algorithms are the same family, and Walnut had them first.
-2. **Speed, where both finish, is mixed but mostly favours Peanut**: 2-40x faster on prism-1,
-   single4/5/6 and all four Tribonacci queries; roughly equal on single3; **Walnut CCLS is faster
-   on tail-a (66 s vs 139 s) and tail-c (10.6 s vs 14.2 s).**
+   seven of the eight without a per-query choice; the eighth (tail-c) needed `learnfe`. That is
+   a defaults/ergonomics difference, not an algorithmic one — the algorithms are the same
+   family, and Walnut had them first.
+2. **Speed against Walnut's best strategy is split on the base-k panel**: Peanut faster on
+   prism-1, single4, single5, single6 (2-40x); Walnut's best faster on single3 (0.4 s vs 1.5 s),
+   tail-a (66 s vs 139 s), tail-b (163 s vs 168 s) and tail-c (10.6 s vs 14.2 s). On the four
+   Tribonacci queries Peanut is faster on all four (learnfe on FE: 0.07 s vs 62 s).
 3. **`learnfe` (a reimplementation of Khodier's self-verifying predicates, which Nicol is building
    into Walnut 8) is the largest single gap**: Tribonacci FE in 0.07 s / <1 MB against 62 s for
    the best Walnut strategy. That gap will close when Walnut 8 ships the same construction.
