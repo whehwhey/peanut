@@ -567,5 +567,13 @@ numeration system {:?} (drop `numsys` to go back to base k)", ns.name));
 pub fn compile_str(k: usize, seq: &Dfao, defs: &Defs, src: &str) -> Result<Dfa, String> {
     let toks = lex(src)?;
     let ast = Parser::new(toks, "T").parse()?;
+    // Antichain evaluation of closed sentences (engine/src/antichain.rs), default ON
+    // since 2026-08-19, AM_ANTICHAIN=0 to disable; the module abstains (None) on any
+    // shape it does not handle, falling through to here.
+    if crate::antichain::enabled() {
+        if let Some(v) = crate::antichain::eval_closed(k, seq, defs, &ast)? {
+            return Ok(Dfa::constant(k, vec![], v));
+        }
+    }
     Compiler::new(k, seq, defs).compile(&ast)
 }

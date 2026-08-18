@@ -8,6 +8,7 @@
 
 use std::collections::HashMap;
 use std::hash::{BuildHasherDefault, Hasher};
+use crate::det_par;
 
 /// FxHash — the rustc hasher. The default SipHash is cryptographic and costs more
 /// than the automata operations it guards; this is 2-4x faster on our key shapes.
@@ -374,9 +375,38 @@ impl Dfa {
         let a = self.extend_vars(&vars);
         let b = other.extend_vars(&vars);
         let alpha = a.alpha;
-        let mut index: FxMap<(u32, u32), u32> = FxMap::default();
         let mut order: Vec<(u32, u32)> = Vec::new();
         let mut trans: Vec<u32> = Vec::new();
+        // AM_FAST: when |A|*|B| fits a direct-indexed table (<= 64M pairs, 256 MB),
+        // the pair -> id map is an array lookup instead of a hash probe.  Pairs are
+        // still discovered in the same BFS order, so the numbering is unchanged.
+        let flat = det_par::fast_enabled()
+            && a.nstates.checked_mul(b.nstates).map_or(false, |n| n <= (1 << 26));
+        if flat {
+            let bn = b.nstates;
+            let mut index: Vec<u32> = vec![u32::MAX; a.nstates * bn];
+            index[0] = 0;
+            order.push((0, 0));
+            let mut i = 0;
+            while i < order.len() {
+                let (p, q) = order[i];
+                let (pr, qr) = (p as usize * alpha, q as usize * alpha);
+                for s in 0..alpha {
+                    let np = a.trans[pr + s];
+                    let nq = b.trans[qr + s];
+                    let key = np as usize * bn + nq as usize;
+                    let mut id = index[key];
+                    if id == u32::MAX {
+                        id = order.len() as u32;
+                        index[key] = id;
+                        order.push((np, nq));
+                    }
+                    trans.push(id);
+                }
+                i += 1;
+            }
+        } else {
+        let mut index: FxMap<(u32, u32), u32> = FxMap::default();
         index.insert((0, 0), 0);
         order.push((0, 0));
         let mut i = 0;
@@ -392,6 +422,7 @@ impl Dfa {
                 trans.push(id);
             }
             i += 1;
+        }
         }
         peak_bump(order.len());
         let accept: Vec<bool> = order.iter().map(|&(p, q)| op(a.accept[p as usize], b.accept[q as usize])).collect();
@@ -412,7 +443,81 @@ impl Dfa {
     pub fn iff(&self, o: &Dfa) -> Dfa { self.product(o, |x, y| x == y) }
 
     /// Existentially project out `var`, then re-close under leading zeros.
+    ///
+    /// Dispatches to the flat/parallel core ([`crate::det_par`]) when `AM_FAST`
+    /// or `AM_PAR` is set; `AM_FAST_VERIFY=1` runs both and asserts the results
+    /// are identical element by element.
     pub fn exists(&self, var: &str) -> Dfa {
+        // AM_STRATEGY=bdd|auto: symbolic (MONA-style) projection, default off;
+        // `None` means a cap was hit, so fall through to the explicit ladder.
+        if crate::symbolic::enabled() {
+            if let Some(d) = crate::symbolic::exists(self, var) { return d; }
+        }
+        if det_par::fast_enabled() {
+            let fast = self.exists_fast(var);
+            if det_par::verify() { det_par::assert_same("exists", &self.exists_ref(var), &fast); }
+            return fast;
+        }
+        self.exists_ref(var)
+    }
+
+    /// The flat-core existential projection: no `Vec<Vec<State>>` NFA, no
+    /// per-subset allocation, the same determinization ladder and the same
+    /// output as [`Dfa::exists_ref`].
+    fn exists_fast(&self, var: &str) -> Dfa {
+        let Some(pos) = self.vars.iter().position(|v| v == var) else { return self.clone() };
+        let k = self.k;
+        let mut newvars = self.vars.clone();
+        newvars.remove(pos);
+        let nalpha = pow(k, newvars.len());
+        let closed = newvars.is_empty();
+        let nfa = det_par::FlatNfa::from_exists(self, pos, newvars, nalpha);
+        let cap0: usize = std::env::var("AM_CAP0").ok().and_then(|v| v.parse().ok()).unwrap_or(50_000);
+        let cap: usize = std::env::var("AM_CAP").ok().and_then(|v| v.parse().ok()).unwrap_or(3_000_000);
+        let dbg = std::env::var("AM_DEBUG2").is_ok();
+        // AM_LAZY_CLOSED: projecting the last variable leaves a one-letter
+        // alphabet, and the only thing ever read off the result is
+        // `zero_closure().accept[0]` -- i.e. plain reachability in the NFA.
+        if closed && det_par::lazy_closed() {
+            let res = det_par::closed_verdict(&nfa);
+            crate::progress::states(res.nstates, var);
+            if dbg { eprintln!("    exists({}): lazy closed verdict, {} states", var, res.nstates); }
+            return res;
+        }
+        let brz = |c: usize| -> Option<Dfa> {
+            let r = nfa.reversed()?;
+            let r1 = det_par::determinize_capped(&r, c)?;
+            let f2 = det_par::FlatNfa::from_dfa(&r1, vec![0]).reversed()?;
+            det_par::determinize_capped(&f2, c)
+        };
+        crate::progress::phase("forward", var);
+        let det = if let Some(d) = det_par::determinize_capped(&nfa, cap0) { d }
+            else if let Some(d) = { crate::progress::phase("brzozowski", var);
+                                    brz(cap0.saturating_mul(4).max(200_000)) } {
+                if dbg { eprintln!("    exists({}): forward > {} subsets; Brzozowski(small) ok, {} states", var, cap0, d.nstates); }
+                d }
+            else if let Some(d) = { crate::progress::phase("forward", var);
+                                    det_par::determinize_capped(&nfa, cap) } {
+                if dbg { eprintln!("    exists({}): Brzozowski(small) failed; forward(big) ok", var); }
+                d }
+            else {
+                if dbg { eprintln!("    exists({}): forward exceeded {} subsets, trying Brzozowski(big)", var, cap); }
+                let big = cap.saturating_mul(4).max(8_000_000);
+                crate::progress::phase("brzozowski", var);
+                brz(big).expect("forward and reverse determinization both blew up")
+            };
+        let res = det.zero_closure().minimize();
+        crate::progress::states(res.nstates, var);
+        if dbg {
+            eprintln!("    exists({}): nfa {} states x alpha {} -> det {} -> min {}",
+                      var, self.nstates, nalpha, det.nstates, res.nstates);
+        }
+        res
+    }
+
+    /// Reference existential projection (the pre-2026-08-18 code path): builds a
+    /// `Vec<Vec<State>>` NFA and runs the same ladder over `Nfa::determinize_capped`.
+    fn exists_ref(&self, var: &str) -> Dfa {
         let Some(pos) = self.vars.iter().position(|v| v == var) else { return self.clone() };
         let k = self.k;
         let mut newvars = self.vars.clone();
@@ -517,6 +622,19 @@ impl Dfa {
             s = n;
         }
         if init.len() == 1 { return self.clone(); }
+        if det_par::fast_enabled() {
+            let f = det_par::FlatNfa::from_dfa(self, init.clone());
+            let fast = det_par::determinize_capped(&f, usize::MAX).unwrap();
+            if det_par::verify() {
+                let nfa = Nfa {
+                    k: self.k, vars: self.vars.clone(), alpha: self.alpha, nstates: self.nstates,
+                    trans: (0..self.nstates * self.alpha).map(|i| vec![self.trans[i]]).collect(),
+                    init, accept: self.accept.clone(),
+                };
+                det_par::assert_same("zero_closure", &nfa.determinize(), &fast);
+            }
+            return fast;
+        }
         let nfa = Nfa {
             k: self.k, vars: self.vars.clone(), alpha: self.alpha, nstates: self.nstates,
             trans: (0..self.nstates * self.alpha).map(|i| vec![self.trans[i]]).collect(),
@@ -531,6 +649,11 @@ impl Dfa {
     /// subset constructions instead of one; used as a fallback when the direct
     /// forward determinization's subset count exceeds its cap.
     pub fn reverse_determinize(&self) -> Dfa {
+        if det_par::fast_enabled() {
+            if let Some(r) = det_par::FlatNfa::from_dfa(self, vec![0]).reversed() {
+                return det_par::determinize_capped(&r, usize::MAX).unwrap().minimize();
+            }
+        }
         let mut trans: Vec<Vec<State>> = vec![Vec::new(); self.nstates * self.alpha];
         for st in 0..self.nstates {
             for a in 0..self.alpha {
@@ -546,7 +669,21 @@ impl Dfa {
     }
 
     /// Remove unreachable states and merge Nerode-equivalent ones (Moore refinement).
+    ///
+    /// `AM_FAST` swaps the refinement's `HashMap<Vec<u32>>` signature table for a
+    /// radix sort ([`crate::det_par::minimize`]); the partition, the numbering and
+    /// therefore the output automaton are the same.
     pub fn minimize(&self) -> Dfa {
+        if det_par::fast_enabled() {
+            let fast = det_par::minimize(self);
+            if det_par::verify() { det_par::assert_same("minimize", &self.minimize_ref(), &fast); }
+            return fast;
+        }
+        self.minimize_ref()
+    }
+
+    /// Reference minimizer (trim + Moore refinement over a hashed signature).
+    pub fn minimize_ref(&self) -> Dfa {
         if self.nstates >= SUBSET_TICK { crate::progress::phase("minimize", ""); }
         // --- trim ---
         let mut map = vec![usize::MAX; self.nstates];

@@ -10,6 +10,10 @@ name = "peanut"
 path = "src/main.rs"
 
 [dependencies]
+# Builder A: frontier-parallel subset construction (engine/src/det_par.rs).
+# Only reachable with AM_PAR=<threads>; the default single-threaded path never
+# enters a rayon pool.
+rayon = "1"
 
 [profile.release]
 opt-level = 3

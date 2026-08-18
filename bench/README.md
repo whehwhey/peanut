@@ -1,5 +1,10 @@
 # Bench — Peanut vs Walnut, equality-of-factors predicate
 
+> Peanut's defaults changed on 2026-08-19 (parallel bitset determinization,
+> antichain evaluation of closed sentences). The current head-to-head table is
+> `../BENCHMARKS.md` and `SPEED-ROUND6.md` ("Final defaults"); anything quoting
+> older Peanut seconds predates that change.
+
 Like-for-like harness comparing Peanut's `let`/`learnfe` construction of
 
     FE(i,j,l) := A t. t < l => T[i+t] = T[j+t]

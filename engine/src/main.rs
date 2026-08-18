@@ -7,7 +7,9 @@
 //! out without any framing beyond newlines. Always invoke this binary through
 //! that Python wrapper, never with unguarded parallel instances: several
 //! engines racing on the same machine can exhaust memory and lock it up.
+mod antichain;
 mod compat;
+mod det_par;
 mod dfa;
 mod numsys;
 mod base;
@@ -20,6 +22,7 @@ mod negbase;
 mod ostrowski;
 mod picture;
 mod progress;
+mod symbolic;
 mod transducer;
 
 #[global_allocator]
@@ -157,7 +160,7 @@ fn main() {
         };
         if progress::on() {
             match cmd {
-                "?" | "eval" | "let" | "witness" | "enum" | "dfa" | "finite" | "learnfe" =>
+                "?" | "eval" | "let" | "witness" | "enum" | "dfa" | "finite" | "learnfe" | "learn" =>
                     progress::phase("compile", line),
                 _ => {}
             }
@@ -412,6 +415,14 @@ fn main() {
                         }
                     }
                     Err(e) => println!("ERR {}", e),
+                }
+            }
+            "learn" => {
+                // learn NAME <kind> | learn NAME (v..) init:.. step:..   (docs/LEARN.md)
+                let Some(d) = &cur else { println!("ERR no sequence"); continue };
+                match learn::cmd_learn(d, &defs, rest) {
+                    Ok((nm, ps, a, msg)) => { println!("{}", msg); defs.insert(nm, (ps, a)); }
+                    Err(e) => println!("ERR learn {}", e),
                 }
             }
             "learnfe" => {

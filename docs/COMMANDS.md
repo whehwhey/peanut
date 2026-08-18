@@ -292,6 +292,35 @@ argument; see LEARNFE.md §3). Failure: `ERR learnfe no progress ...` /
 `ERR learnfe gave up after N iterations` — reported, not hidden, and the only
 failure mode (correctness cannot be wrong, only non-termination).
 
+### `learn NAME <kind>` / `learn NAME (v..) init:.. step:..`
+
+The same guess-and-verify construction for other self-verifying predicate classes.
+Registers `$NAME` like `let`, and takes the same `AM_LEARN_*` env vars as `learnfe`.
+Built-in kinds:
+
+| kind | parameters | predicate |
+|---|---|---|
+| `fe` | `(i,j,l)` | `A t<l. T[i+t] = T[j+t]` — identical to `learnfe` |
+| `rev` | `(i,j,l)` | `A t<l. T[i+t] = T[j+l-1-t]` (so `$R(i,i,n)` = "palindrome") |
+| `period` | `(i,l,p)` | `A t. t+p<l => T[i+t] = T[i+t+p]` |
+| `border` | `(i,l,b)` | `b<=l & A t<b. T[i+t] = T[i+l-b+t]` |
+
+```
+> def T 2 2 0 01 10 01
+> learn RV rev
+OK learn RV(i,j,l) kind=rev states=31 iters=3 eqs=1 ces=30 mqs=80537 steps=69606 peak=93 ms=43
+> ? A n. E i. $RV(i,i,n)                 # does Thue-Morse have a palindrome of every length?
+TRUE states=1 peak=... ms=2
+```
+
+A custom class is given as its own recurrence — `learn NAME (v1,..,vn) [on:v]
+init:PHI0 step:PHI1` — and the learner verifies the result against exactly that
+recurrence, so a wrong recurrence is a rejected automaton, not a wrong answer.
+Full syntax, the uniqueness proof for each recurrence, and the panel benchmarks
+(`learn` finishes 12 panel cases where the direct `let` construction exhausts
+6 GB or 150 s, and agrees with it on all 45 where both finish):
+`docs/LEARN.md`. Why it is sound at all: `docs/LEARNFE.md`.
+
 ### `enum B formula`
 
 Lists every accepted tuple with every coordinate `< B` (default 20 if `B` is
@@ -501,6 +530,12 @@ non-negative; arity must match).
 | var | default | meaning |
 |---|---|---|
 | `AM_MEM_MB` | 2048 | Hard allocator budget (MB) for the whole process — `engine/src/membudget.rs`. On breach: `ERR memory budget exceeded (N MB)` to stdout, matching line to stderr, exit code 3. |
+| `AM_PAR` | `min(8, cores-2)` | Worker threads for the frontier-parallel subset construction (`engine/src/det_par.rs`). **On by default since 2026-08-19.** `AM_PAR=1` restores the pre-2026-08-19 single-threaded reference path; `AM_PAR=1 AM_FAST=1` the serial flat core. Benchmarks and the correctness gate: `bench/SPEED-ROUND6.md`, `bench/DETPAR-RESULTS.md`. Set it to 1 in a harness that already runs several engines at once — each engine builds its own pool. |
+| `AM_FAST` | implied by `AM_PAR` | Route determinization/minimization through the flat core without the thread pool. Only meaningful together with `AM_PAR=1`. |
+| `AM_FAST_VERIFY` | unset | Build every `exists`/`minimize`/`zero_closure` both the old way and the flat way and assert the results are equal element by element (~2x slower; development gate). |
+| `AM_ANTICHAIN` | on | Answer **closed** sentences by NFA emptiness / antichain universality instead of determinizing (`engine/src/antichain.rs`, `docs/ANTICHAIN.md`). **On by default since 2026-08-19**; `AM_ANTICHAIN=0` turns it off. Never fires on a formula with free variables, so `let`/`dfa`/`enum` are unaffected. Tuning: `AM_AC_CAP`, `AM_AC_WORK`, `AM_AC_SIM`, `AM_AC_DEBUG`. |
+| `AM_STRATEGY` | `off` | `bdd` = always try the symbolic (MONA-style, decision-diagram) projection first; `auto` = try it only when the alphabet is large enough to pay for it; `off` = the explicit ladder. **Off by default**: on the equality-of-factors panel it is a wash, but on large product alphabets it is worth up to 18x — see `bench/BDD-RESULTS.md` and use `auto` for wide formulas. Tuning: `AM_BDD_CAP`, `AM_BDD_NODES`, `AM_BDD_MINALPHA`, `AM_BDD_PROBE`, `AM_BDD_DEBUG`. |
+| `AM_LAZY_CLOSED` | unset | Answer the closed sentence left by projecting the last variable by NFA reachability rather than determinizing. Correct and gated, worth under 1 % now that the antichain handles closed sentences first; off by default. |
 | `AM_CAP0` | 50000 | First (cheap) forward subset-construction cap tried by every `exists` — `engine/src/dfa.rs`. |
 | `AM_CAP` | 3000000 | Last-resort forward subset-construction cap, tried after Brzozowski(cap0*4) fails. |
 | `AM_LEARN_LCP` | 2^22 (4194304) | Step cap on the LCP membership-oracle walk inside `learnfe`; a pair surviving the cap is treated as `LCP = infinity` (harmless, see LEARNFE.md). |

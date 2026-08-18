@@ -30,7 +30,9 @@ See `research/README.md`: results obtained with Peanut, each with its referee ve
 
 ## Benchmarks
 
-See `BENCHMARKS.md`. Corrected 2026-08-18 after John Nicol's note: with the right per-query strategy (Brzozowski/OTF, `[strategy]`) Walnut 8-dev answers every hard case too; Peanut's advantages are one default that needs no strategy tuning, mostly-faster times where both finish, `learnfe` (Khodier's construction, also coming to Walnut 8), a scriptable guarded runner for sweeps, and the GUI. State counts agree to the dead state everywhere.
+See `BENCHMARKS.md`. Updated 2026-08-19 for the new defaults (frontier-parallel bitset determinization, antichain evaluation of closed sentences): 2.5x-13x faster than Peanut's own previous default on the equality-of-factors panel, and faster than the best per-case Walnut 8-dev strategy on seven of the eight base-k cases and on Tribonacci — Walnut's CCLS still wins `tail-c` (10.6 s against 16.1 s). Known limitations: `docs/KNOWN-ISSUES.md`.
+
+Earlier reading, still true, from the 2026-08-18 correction after John Nicol's note: with the right per-query strategy (Brzozowski/OTF, `[strategy]`) Walnut 8-dev answers every hard case too; Peanut's advantages are one default that needs no strategy tuning, mostly-faster times where both finish, `learnfe` (Khodier's construction, also coming to Walnut 8), a scriptable guarded runner for sweeps, and the GUI. State counts agree to the dead state everywhere.
 
 ## Quick start
 

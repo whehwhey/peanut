@@ -1,5 +1,54 @@
 # Benchmarks — Peanut vs Walnut 8-dev
 
+## Current defaults (2026-08-19)
+
+Peanut's defaults changed on 2026-08-19: frontier-parallel bitset determinization
+(`AM_PAR = min(8, cores-2)`) and antichain evaluation of closed sentences
+(`AM_ANTICHAIN`) are now on. Every Peanut number below this section predates that and
+is the *old* default. Re-measured, quiet machine (18-core Apple Silicon / 24 GB), one
+engine process at a time, 6 GB budget on both engines, msd, `bench/defaults_bench.py`:
+
+    equality of factors, base k          Peanut  Peanut       best Walnut 8-dev
+    let FE(i,j,l) A t. t<l => T[i+t]=T[j+t]
+    case      states   old default    NEW default     strategy    seconds
+    prism-1      467      34.05 s        2.71 s       CCLS          90.8
+    single3      190       0.010 s       0.004 s      BRZ-CCL        0.4
+    single4      698       0.150 s       0.022 s      BRZ-CCL        3.8
+    single5     1877       2.06 s        0.219 s      BRZ-CCL       67
+    single6     3971      18.02 s        1.66 s       BRZ-CCLS     897
+    tail-a      1165     140.4 s        14.49 s       CCLS          66
+    tail-b      1000     169.1 s        19.41 s       CCLS         163
+    tail-c      1382     no answer*    191.1 s        CCLS          10.6
+    tail-c      1382      14.99 s       16.10 s   (via `learnfe`, the right tool here)
+
+    Tribonacci (numsys trib)
+    FE(i,j,l)     27       3.08 s        0.349 s      BRZ-CCLS      62
+    FE via learnfe 27       0.074 s       0.082 s     BRZ-CCLS      62
+
+`*` the old default is killed at 6 GB on tail-c's direct construction; the new one
+finishes it in 191 s / 2818 MB, at the same 1382 states the learner reports.
+
+**Where Walnut is still faster: tail-c.** Walnut's CCLS answers it in 10.6 s; Peanut's
+best on that row is 16.10 s via `learnfe` (and 191 s via the direct ladder). That is
+the only case in this table Peanut does not win, and the margin is 1.5x.
+
+Everything else in the table Peanut now answers faster than the best Walnut strategy
+for that case — 4.6x on tail-a, 8.4x on tail-b, 33x on prism-1, 540x on single6, 178x
+on Tribonacci FE by the ladder and 756x by the learner. Read that with the two caveats
+below intact: **Walnut answers every one of these cases too** once the right
+`[strategy]` is chosen per query (John Nicol's correction, which the section below
+records in full), and `learnfe` is a reimplementation of Mazen Khodier's self-verifying
+predicates, which Walnut 8 is adopting. The difference this table measures is mostly
+one of defaults — Peanut picks a construction per subproblem and needs no per-query
+tuning — not of algorithms.
+
+State counts still agree with Walnut's to the dead state on every row where both
+finish, which is the correctness cross-check behind all of the above.
+
+---
+
+# The 2026-08-18 per-strategy comparison (Peanut numbers = old defaults)
+
 
 John Nicol (Walnut's developer) pointed out that our first benchmark compared Peanut only
 against Walnut's DEFAULT determinization (plain subset construction), although Walnut 7+ ships
