@@ -30,7 +30,7 @@ See `research/README.md`: results obtained with Peanut, each with its referee ve
 
 ## Benchmarks
 
-See `BENCHMARKS.md`: parity with Walnut on easy inputs; on the FE-hard inputs and on Tribonacci numeration Peanut answers where Walnut 8-dev runs out of memory at the same 6 GB (Khodier's Tribonacci FE: 3.1 s / 133 MB, or 0.07 s via `learnfe`).
+See `BENCHMARKS.md`. Corrected 2026-08-18 after John Nicol's note: with the right per-query strategy (Brzozowski/OTF, `[strategy]`) Walnut 8-dev answers every hard case too; Peanut's advantages are one default that needs no strategy tuning, mostly-faster times where both finish, `learnfe` (Khodier's construction, also coming to Walnut 8), a scriptable guarded runner for sweeps, and the GUI. State counts agree to the dead state everywhere.
 
 ## Quick start
 
