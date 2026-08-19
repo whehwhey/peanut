@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Benchmarks: Peanut</title>
+<meta name="description" content="Peanut vs Walnut 8-dev, equality-of-factors panel and Tribonacci, with the correction owed to John Nicol kept intact.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="index.html">
+      <img src="assets/logo.svg" alt="">
+      <span class="brand-name">Peanut</span>
+    </a>
+    <nav class="site">
+      <a href="index.html">Home</a>
+      <a href="results.html">Results</a>
+      <a href="benchmarks.html" aria-current="page">Benchmarks</a>
+      <a href="about.html">About</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <h1>Benchmarks</h1>
+    <p class="lede">
+      Peanut vs Walnut 8-dev on the equality-of-factors predicate, the case
+      documented to blow up worst. Full methodology, raw numbers and the
+      superseded tables are in
+      <a href="https://github.com/whehwhey/peanut/blob/main/BENCHMARKS.md">BENCHMARKS.md</a>
+      in the repository.
+    </p>
+
+    <h2>Current defaults (2026-08-19)</h2>
+    <p>
+      Frontier-parallel bitset determinization and antichain evaluation of closed
+      sentences are now Peanut's defaults. Measured on a quiet 18-core Apple Silicon
+      machine, one engine process at a time, 6 GB budget on both engines, msd,
+      <code>bench/defaults_bench.py</code>:
+    </p>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>case</th><th>states</th><th>Peanut, old default</th>
+            <th>Peanut, new default</th><th>best Walnut 8-dev</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>prism-1</td><td>467</td><td>34.05 s</td><td>2.71 s</td><td>CCLS, 90.8 s</td></tr>
+          <tr><td>single3</td><td>190</td><td>0.010 s</td><td>0.004 s</td><td>BRZ-CCL, 0.4 s</td></tr>
+          <tr><td>single4</td><td>698</td><td>0.150 s</td><td>0.022 s</td><td>BRZ-CCL, 3.8 s</td></tr>
+          <tr><td>single5</td><td>1877</td><td>2.06 s</td><td>0.219 s</td><td>BRZ-CCL, 67 s</td></tr>
+          <tr><td>single6</td><td>3971</td><td>18.02 s</td><td>1.66 s</td><td>BRZ-CCLS, 897 s</td></tr>
+          <tr><td>tail-a</td><td>1165</td><td>140.4 s</td><td>14.49 s</td><td>CCLS, 66 s</td></tr>
+          <tr><td>tail-b</td><td>1000</td><td>169.1 s</td><td>19.41 s</td><td>CCLS, 163 s</td></tr>
+          <tr><td>tail-c</td><td>1382</td><td>no answer*</td><td>191.1 s</td><td>CCLS, 10.6 s</td></tr>
+          <tr><td>tail-c (via learnfe)</td><td>1382</td><td>14.99 s</td><td>16.10 s</td><td>CCLS, 10.6 s</td></tr>
+          <tr><td>Tribonacci FE</td><td>27</td><td>3.08 s</td><td>0.349 s</td><td>BRZ-CCLS, 62 s</td></tr>
+          <tr><td>Tribonacci FE (via learnfe)</td><td>27</td><td>0.074 s</td><td>0.082 s</td><td>BRZ-CCLS, 62 s</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      * the old default is killed at 6 GB on tail-c's direct construction; the new
+      one finishes it in 191 s / 2818 MB, at the same 1382 states the learner
+      reports.
+    </p>
+
+    <p>
+      <strong>Where Walnut is still faster: tail-c.</strong> Walnut's CCLS strategy
+      answers it in 10.6 s; Peanut's best on that row is 16.10 s via
+      <code>learnfe</code>. That is the only case in this table Peanut does not win,
+      and the margin is 1.5x. Everywhere else, Peanut now beats the best Walnut
+      strategy for that case: 4.6x on tail-a, 8.4x on tail-b, 33x on prism-1,
+      540x on single6, 178x on Tribonacci FE by the ladder and 756x by the learner.
+      State counts agree with Walnut's to the dead state on every row where both
+      finish, which is the correctness cross-check behind all of this.
+    </p>
+
+    <h2>The Nicol correction</h2>
+    <p>
+      An earlier version of this benchmark compared Peanut only against Walnut's
+      default determinization strategy (plain subset construction), although
+      Walnut 7+ ships Brzozowski and on-the-fly strategies of its own. John Nicol,
+      Walnut's developer, pointed this out, and he was right. The claim that
+      "Walnut OOMs where Peanut answers" in that first benchmark was an artefact of
+      running the default strategy only, and is withdrawn. With the right strategy
+      chosen per query, <strong>Walnut 8-dev answers every case in this table
+      too</strong>.
+    </p>
+    <p>
+      What remains true after the correction: no single Walnut strategy covers the
+      whole panel, so a run needs per-query tuning that Peanut's one default does
+      not; state counts agree everywhere both tools finish, an independent
+      cross-check on both implementations; and <code>learnfe</code>, Peanut's
+      reimplementation of Mazen Khodier's self-verifying predicates, is the largest
+      single gap on Tribonacci FE, a gap that closes as Walnut 8 adopts the same
+      construction. The difference this benchmark measures is mostly one of
+      defaults, not of algorithms, and Walnut had the underlying algorithms
+      first. Thanks to John Nicol for the correction.
+    </p>
+
+    <p>
+      Full per-strategy tables, the Tribonacci and Fibonacci numeration
+      benchmarks, and every fairness caveat: see
+      <a href="https://github.com/whehwhey/peanut/blob/main/BENCHMARKS.md">BENCHMARKS.md</a>.
+      Known limitations of the engine: <a href="https://github.com/whehwhey/peanut/blob/main/docs/KNOWN-ISSUES.md">KNOWN-ISSUES.md</a>.
+    </p>
+  </div>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <span>MIT licensed. Copyright 2026 Andrew Hingston.</span>
+    <span><a href="https://github.com/whehwhey/peanut">github.com/whehwhey/peanut</a></span>
+  </div>
+</footer>
+</body>
+</html>

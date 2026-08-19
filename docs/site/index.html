@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peanut: an automatic sequence decision procedure</title>
+<meta name="description" content="Peanut is a first-order-logic decision procedure for k-automatic sequences: an open-source engine, benchmarked against Walnut, that has answered two open problems.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="index.html">
+      <img src="assets/logo.svg" alt="">
+      <span class="brand-name">Peanut</span>
+    </a>
+    <nav class="site">
+      <a href="index.html" aria-current="page">Home</a>
+      <a href="results.html">Results</a>
+      <a href="benchmarks.html">Benchmarks</a>
+      <a href="about.html">About</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="hero">
+      <img src="assets/logo.svg" alt="Peanut mascot: a chubby kawaii peanut with dot eyes and blushed cheeks">
+      <div>
+        <h1>Peanut</h1>
+        <p class="lede">A decision procedure for automatic sequences, with a mascot.</p>
+      </div>
+    </div>
+
+    <p>
+      Peanut is a first-order-logic decision procedure for k-automatic sequences.
+      Give it a morphism and a coding, and it compiles sentences over
+      <code>&lt;N, +, &lt;, V_k&gt;</code> and the resulting sequence into deterministic
+      finite automata; the compilation is the proof. It answers exactly, for all
+      <code>n</code> at once, questions that a computer could otherwise only sample.
+      On top of that core sits an adaptive determinization ladder for hard
+      predicates, a guess-and-verify active-learning construction for the notoriously
+      expensive "equality of factors" predicate, a hard resource guard so a bad query
+      fails safely instead of eating the machine, and a browser GUI.
+    </p>
+
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/whehwhey/peanut">Repository</a>
+      <a class="btn" href="benchmarks.html">Benchmarks</a>
+      <a class="btn" href="https://github.com/whehwhey/peanut/blob/main/docs/COMMANDS.md">Guide</a>
+    </div>
+
+    <h2>Install and run</h2>
+    <p>One command, needs Rust and Python 3:</p>
+    <pre><code>git clone https://github.com/whehwhey/peanut.git
+cd peanut
+./start.sh</code></pre>
+    <p>
+      This builds the engine if needed, starts the web GUI, and opens your browser.
+      For the command-line engine directly:
+    </p>
+    <pre><code>cd engine &amp;&amp; cargo build --release
+echo 'mode msd
+def T 2 2 0 01 10 01
+? A i. T[i]=T[i]
+quit' | ./target/release/peanut</code></pre>
+
+    <h2>What it is for</h2>
+    <p>
+      Peanut exists to answer questions about automatic sequences that other tools
+      choke on, in particular Mazen Khodier's open problem about the "equality of
+      factors" predicate, whose direct construction is documented to blow up by nine
+      orders of magnitude on Tribonacci before collapsing to a 26-state minimal
+      answer. See the <a href="results.html">Results</a> page for what Peanut has
+      been used to prove, and <a href="benchmarks.html">Benchmarks</a> for how it
+      compares to Walnut.
+    </p>
+  </div>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <span>MIT licensed. Copyright 2026 Andrew Hingston.</span>
+    <span><a href="https://github.com/whehwhey/peanut">github.com/whehwhey/peanut</a></span>
+  </div>
+</footer>
+</body>
+</html>

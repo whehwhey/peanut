@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Results: Peanut</title>
+<meta name="description" content="Research results produced with Peanut, each with an independent referee verdict: two open problems answered, several advanced, one already known.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="index.html">
+      <img src="assets/logo.svg" alt="">
+      <span class="brand-name">Peanut</span>
+    </a>
+    <nav class="site">
+      <a href="index.html">Home</a>
+      <a href="results.html" aria-current="page">Results</a>
+      <a href="benchmarks.html">Benchmarks</a>
+      <a href="about.html">About</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <h1>Results</h1>
+    <p class="lede">
+      Every result below was produced with Peanut, then adversarially refereed by
+      an independent pass: separate brute-force code, hand re-derivation, and
+      counterexample search. The referee verdict is the authority on status, not
+      the original write-up. Full detail, referee reports and PDFs are in
+      <a href="https://github.com/whehwhey/peanut/tree/main/research">research/</a>
+      in the repository.
+    </p>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Result</th><th>Status</th><th>Where</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>A tight family for the state complexity of linear subsequences,
+              answers Open Problem 1 of Moradi&ndash;Rampersad&ndash;Shallit
+              (arXiv:2512.10017): <code>sc(h_m(n·i)) = m²(n−1) − m·max(2^(p−1), r)</code>
+              for odd n, so ≥ ½·n·m²</td>
+            <td><span class="status status-proved">PROVED</span></td>
+            <td><a href="https://github.com/whehwhey/peanut/blob/main/research/attacks/ATTACK-2.md">ATTACK-2</a></td>
+          </tr>
+          <tr>
+            <td>Greedy 3-sum-free sequences, JIS 2025 Conjecture 17, sharp on the range g ≥ d</td>
+            <td><span class="status status-proved">PROVED</span></td>
+            <td><a href="https://github.com/whehwhey/peanut/blob/main/research/attacks/ATTACK-4.md">ATTACK-4</a></td>
+          </tr>
+          <tr>
+            <td>Shifted Thue&ndash;Morse state complexity (Open Problem 2): structure
+              theorem, exact algorithm, non-2-regularity evidence</td>
+            <td><span class="status status-proved">PROVED</span> (theorems);
+              problem still <span class="status status-open">OPEN</span></td>
+            <td><a href="https://github.com/whehwhey/peanut/blob/main/research/attacks/ATTACK-1.md">ATTACK-1</a></td>
+          </tr>
+          <tr>
+            <td>Fokkink&ndash;Joshi rusty numbers a=(1,d), d=3..12 (Integers 2026)</td>
+            <td><span class="status status-verified">MACHINE-VERIFIED</span>, 249
+              forms; conjecture <span class="status status-open">OPEN</span></td>
+            <td><a href="https://github.com/whehwhey/peanut/blob/main/research/attacks/ATTACK-3.md">ATTACK-3</a></td>
+          </tr>
+          <tr>
+            <td>Synchronization delay of k-automatic sequences (Khodier Open Problem 4)</td>
+            <td>characterisation theorem <span class="status status-proved">PROVED</span>;
+              problem <span class="status status-open">OPEN</span></td>
+            <td><a href="https://github.com/whehwhey/peanut/blob/main/research/attacks/ATTACK-5.md">ATTACK-5</a></td>
+          </tr>
+          <tr>
+            <td>Peltomäki&ndash;Salo Q10.1 / Problem 10.2</td>
+            <td>10.1 already known; 10.2 ladder <span class="status status-proved">PROVED</span></td>
+            <td><a href="https://github.com/whehwhey/peanut/blob/main/research/attacks/ATTACK-6.md">ATTACK-6</a>,
+              <a href="https://github.com/whehwhey/peanut/blob/main/research/attacks/ATTACK-7.md">ATTACK-7</a></td>
+          </tr>
+          <tr>
+            <td>Size of the equality-of-factors automaton (Khodier Open Problem 1):
+              full-output generalised Thue&ndash;Morse |FE| = Θ(p³) proved; singleton
+              coding ≥ p⁴ proved; random-ensemble sweep to m=7 finds no exponential family;
+              conjecture |FE| = poly(m) still open</td>
+            <td>mixed: <span class="status status-proved">PROVED</span> parts,
+              conjecture <span class="status status-open">OPEN</span></td>
+            <td><a href="https://github.com/whehwhey/peanut/tree/main/research/target1">target1/</a></td>
+          </tr>
+          <tr>
+            <td>Numeration systems (Fibonacci / Tribonacci / Pell) and the
+              Tribonacci equality-of-factors benchmark</td>
+            <td><span class="status status-verified">MACHINE-VERIFIED</span></td>
+            <td><a href="benchmarks.html">Benchmarks</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="note">
+      "Already known" is in the table on purpose. One line of inquiry (Peltomäki&ndash;Salo
+      Q10.1) turned out to already be settled in the literature; the honest thing to
+      do with that outcome is publish it, not bury it.
+    </p>
+  </div>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <span>MIT licensed. Copyright 2026 Andrew Hingston.</span>
+    <span><a href="https://github.com/whehwhey/peanut">github.com/whehwhey/peanut</a></span>
+  </div>
+</footer>
+</body>
+</html>
