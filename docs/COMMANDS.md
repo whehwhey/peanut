@@ -267,6 +267,38 @@ TRUE states=1 peak=3 ms=0 :: A i. $EQ(i,i)
 
 Error: `ERR $NAME body has unbound variables [...] not in the parameter list`.
 
+**Auto-`learnfe` (`AM_AUTOLEARN`, default on).** If `formula` is *exactly* one of the
+self-verifying predicate shapes the learner knows —
+
+| shape | body (subtraction-free `let` form) |
+|---|---|
+| FE | `A t. t < l => T[i+t] = T[j+t]` |
+| rev | `A t,u. (t<l & t+u+1=l) => T[i+t] = T[j+u]` |
+| period | `A t. t+p < l => T[i+t] = T[i+t+p]` |
+| border | `(b<=l) & (A t,u. (t<b & u+b=l) => T[i+t] = T[i+u+t])` |
+
+up to renaming and reordering the parameters — then `let` first *probes* the ordinary
+determinization ladder on its two cheap rungs (forward `AM_CAP0`, Brzozowski `4·AM_CAP0`).
+If they succeed the ladder answer is returned unchanged (`via=ladder`); if they fail —
+the hard "tail" cases — the construction is handed to `learn_pred` (`via=learnfe`), which
+is *proved* language-equal to the predicate and returns the **same minimal DFA** the
+ladder would, but wins the blow-up cases (tail-c: `let FE` needs 448 s / 2818 MB of
+direct determinization and dies under the default budget; auto-`learnfe` answers in
+~16 s / ~230 MB). A near-miss body (`t<=l`, a shifted index, `E` instead of `A`, `!=`
+instead of `=`, …) is **not** a shape and is compiled by the ordinary ladder, unchanged.
+
+```
+> let FE(i,j,l) A t. t < l => T[i+t] = T[j+t]          # thue-morse
+OK let FE(i,j,l) states=15 peak=531 ms=1 via=ladder
+> let FE(i,j,l) A t. t < l => T[i+t] = T[j+t]          # tail-c (hard)
+OK let FE(i,j,l) states=1382 peak=8767 ms=16058 via=learnfe kind=fe eqs=139 ces=1381 mqs=5992969
+```
+
+`AM_AUTOLEARN=0` forces the pure ladder on every `let` (no shape detection, no `via=`
+suffix), which the benchmarks use to time the two paths separately. This never changes a
+verdict or a minimal state count: it only chooses *how* the automaton is built. See
+`docs/LEARNFE.md` §10.
+
 ### `learnfe NAME`
 
 Builds `FE(i,j,l) := A t. t < l => T[i+t] = T[j+t]` for the current sequence by
@@ -536,7 +568,8 @@ non-negative; arity must match).
 | `AM_ANTICHAIN` | on | Answer **closed** sentences by NFA emptiness / antichain universality instead of determinizing (`engine/src/antichain.rs`, `docs/ANTICHAIN.md`). **On by default since 2026-08-19**; `AM_ANTICHAIN=0` turns it off. Never fires on a formula with free variables, so `let`/`dfa`/`enum` are unaffected. Tuning: `AM_AC_CAP`, `AM_AC_WORK`, `AM_AC_SIM`, `AM_AC_DEBUG`. |
 | `AM_STRATEGY` | `off` | `bdd` = always try the symbolic (MONA-style, decision-diagram) projection first; `auto` = try it only when the alphabet is large enough to pay for it; `off` = the explicit ladder. **Off by default**: on the equality-of-factors panel it is a wash, but on large product alphabets it is worth up to 18x — see `bench/BDD-RESULTS.md` and use `auto` for wide formulas. Tuning: `AM_BDD_CAP`, `AM_BDD_NODES`, `AM_BDD_MINALPHA`, `AM_BDD_PROBE`, `AM_BDD_DEBUG`. |
 | `AM_LAZY_CLOSED` | unset | Answer the closed sentence left by projecting the last variable by NFA reachability rather than determinizing. Correct and gated, worth under 1 % now that the antichain handles closed sentences first; off by default. |
-| `AM_CAP0` | 50000 | First (cheap) forward subset-construction cap tried by every `exists` — `engine/src/dfa.rs`. |
+| `AM_AUTOLEARN` | on | Auto-`learnfe`: when a `let` body is exactly a self-verifying shape (FE/rev/period/border), probe the ladder's two cheap rungs and hand off to `learn_pred` (`via=learnfe`) if they fail (`engine/src/autolearn.rs`). Answer-identical to the pure ladder on every case the ladder finishes; wins the tail cases. `AM_AUTOLEARN=0` forces the pure ladder on every `let` (no `via=` suffix). Gate: `tools/fuzz_autolearn.py`. |
+| `AM_CAP0` | 50000 | First (cheap) forward subset-construction cap tried by every `exists` — `engine/src/dfa.rs`. Also the probe cap for auto-`learnfe` (see `AM_AUTOLEARN`). |
 | `AM_CAP` | 3000000 | Last-resort forward subset-construction cap, tried after Brzozowski(cap0*4) fails. |
 | `AM_LEARN_LCP` | 2^22 (4194304) | Step cap on the LCP membership-oracle walk inside `learnfe`; a pair surviving the cap is treated as `LCP = infinity` (harmless, see LEARNFE.md). |
 | `AM_LEARN_LCP_MAX` | 2^26 (67108864) | Ceiling `AM_LEARN_LCP` is allowed to escalate to when the learner detects a stall and retries with a larger cap. |

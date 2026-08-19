@@ -19,7 +19,7 @@ engine process at a time, 6 GB budget on both engines, msd, `bench/defaults_benc
     tail-a      1165     140.4 s        14.49 s       CCLS          66
     tail-b      1000     169.1 s        19.41 s       CCLS         163
     tail-c      1382     no answer*    191.1 s        CCLS          10.6
-    tail-c      1382      14.99 s       16.10 s   (via `learnfe`, the right tool here)
+    tail-c      1382      14.99 s       16.10 s   (auto-`learnfe`, now the default path)
 
     Tribonacci (numsys trib)
     FE(i,j,l)     27       3.08 s        0.349 s      BRZ-CCLS      62
@@ -28,9 +28,20 @@ engine process at a time, 6 GB budget on both engines, msd, `bench/defaults_benc
 `*` the old default is killed at 6 GB on tail-c's direct construction; the new one
 finishes it in 191 s / 2818 MB, at the same 1382 states the learner reports.
 
-**Where Walnut is still faster: tail-c.** Walnut's CCLS answers it in 10.6 s; Peanut's
-best on that row is 16.10 s via `learnfe` (and 191 s via the direct ladder). That is
-the only case in this table Peanut does not win, and the margin is 1.5x.
+**tail-c is now automatic.** Since the `AM_AUTOLEARN` change (default on), an ordinary
+`let FE(i,j,l) A t. t<l => T[i+t]=T[j+t]` detects the equality-of-factors shape and, when
+the ladder cannot build it cheaply, hands off to the `learnfe` guess-and-verify path by
+itself — the user no longer has to know the `learnfe` command to get the 16 s answer
+(`docs/LEARNFE.md` §10). `AM_AUTOLEARN=0` forces the direct ladder (191 s here, and no
+answer at all under the default 2048 MB budget).
+
+**Where Walnut is still faster on this machine: tail-c.** On this 6 GB Mac measurement
+Walnut's CCLS answers it in 10.6 s vs Peanut's 16.10 s (1.5x), the only row Peanut does
+not win here. On the 32 GB rig the ranking flips — Walnut CCLS is 28.5 s there against the
+same ~16 s learn path — so tail-c is a Peanut win by default on the rig; see the
+`bench/RIG-BENCH-32GB.md` cross-check below. Both are true and both are reported; the honest
+note stays that the winning path is the *learn* construction (learned, then proved
+language-equal to FE), not direct determinization.
 
 Everything else in the table Peanut now answers faster than the best Walnut strategy
 for that case — 4.6x on tail-a, 8.4x on tail-b, 33x on prism-1, 540x on single6, 178x
@@ -44,6 +55,35 @@ tuning — not of algorithms.
 
 State counts still agree with Walnut's to the dead state on every row where both
 finish, which is the correctness cross-check behind all of the above.
+
+---
+
+# 32 GB cross-check: does more RAM change who wins?  (`bench/RIG-BENCH-32GB.md`)
+
+The head-to-head above is a 6 GB Mac. To rule out "Peanut only wins because Walnut ran
+out of memory", the full equality-of-factors panel and four Tribonacci queries were rerun
+on the peanut-rig (i9-14900, 64 GB) at `AM_MEM_MB=32768` and `java -Xmx32g` on both sides,
+one process at a time. The complete per-case and per-strategy tables, with every
+measurement, are in **[`bench/RIG-BENCH-32GB.md`](bench/RIG-BENCH-32GB.md)**.
+
+Reading, in one line: **more RAM does not change who wins.** Walnut's `SC`/`CCL` turn
+their 6 GB OOMs into 1800 s timeouts rather than answers, and its `CCLS`/`BRZ-CCLS` — the
+strategies that do answer — are, if anything, *slower* on the rig than on the Mac (the
+i9's weaker single-thread clock), so the extra memory buys no Walnut win on any case
+Peanut also answers. Peanut's own numbers are memory-ceiling-independent (identical state
+counts and near-identical peak MB at 6 GB and 32 GB).
+
+Two caveats carried over intact from that file:
+
+- **Walnut `BRZ`-strategy bug flag.** On the rig's fresh Walnut HEAD build, the `BRZ`
+  strategy reports wrong state counts on several cases (`prism-1` 1058 where `CCLS` gives
+  the correct 466; the Tribonacci cube/4th-power/palindrome cells). Any Walnut count that
+  is not exactly Peanut-minus-one is flagged in the file and must be cross-checked against
+  another strategy before use — this is a Walnut-repo issue, not a Peanut one.
+- **tail-c honesty.** On the rig, tail-c is a Peanut win by default (~16 s auto-`learnfe`
+  vs Walnut `CCLS` 28.5 s), the opposite of the 6 GB Mac row above. The winning path is
+  the *learn* construction (proved language-equal to FE), not the direct determinization
+  (447 s / 2818 MB on the rig, and no answer under the default budget).
 
 ---
 

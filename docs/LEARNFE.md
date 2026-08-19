@@ -321,7 +321,7 @@ Two honest limits:
   *answer* size (roughly `N` counterexamples, `N/13` equivalence queries), not with the
   intermediate blowup — which is exactly why it wins where the direct method dies, and
   loses where the direct method is fine.  A sensible driver runs `let FE` first with a
-  small cap and falls back to `learnfe`.
+  small cap and falls back to `learnfe` — which is exactly what auto-`learnfe` does (§10).
 * The membership oracle assumes `LCP = infinity` past its step cap.  This cannot make a
   reported automaton wrong (§2), but it can make the learner chase a non-regular target
   and stall; the engine detects the stall, raises the cap, and relearns.
@@ -331,6 +331,64 @@ Two honest limits:
 * `engine/src/learn.rs` — oracle, discrimination-tree learner, verifier, driver
 * `engine/src/dfa.rs` — `bfs_tree`, `word_to`, `shortest_word` (witness extraction)
 * `engine/src/main.rs` — `witness` and `learnfe` commands
+* `engine/src/autolearn.rs` — auto-`learnfe` shape detector + cheap-ladder probe (§10)
 * `explore/learnfe_bench.py` — reproduces both tables (`panel` / `censored`)
 * `results/learnfe_panel.json` — agreement table, raw
 * `results/learnfe_censored.json` — censored-tail table, raw
+
+## 10. Auto-`learnfe`: `let` uses the learn path by itself (`AM_AUTOLEARN`, default on)
+
+The "sensible driver" of §8 is built in.  A user who types the ordinary
+
+    let FE(i,j,l) A t. t < l => T[i+t] = T[j+t]
+
+gets the fast guess-and-verify construction on the hard cases **without knowing the
+`learnfe` command exists**.  `engine/src/autolearn.rs` does two things when `let`
+compiles a body:
+
+1. **Shape detection.**  Is the body *syntactically* one of the four self-verifying
+   shapes — FE, rev, period, border — up to renaming and reordering the parameters?  The
+   rev and border bodies are matched in their *subtraction-free* `let` forms
+   (`rev`: `A t,u. (t<l & t+u+1=l) => T[i+t]=T[j+u]`; `border`:
+   `(b<=l) & (A t,u. (t<b & u+b=l) => T[i+t]=T[i+u+t])`), because a term like `j+l-1-t`
+   is not an admissible index for the direct compiler in the first place.  Detection is
+   deliberately strict: any near-miss — `t<=l`, a shifted index, `E` for `A`, `!=` for
+   `=` — is *not* a shape and is left to the ordinary ladder, unchanged.
+
+2. **Cheap probe, then hand off.**  Measured across the whole panel (this file §6,
+   `docs/LEARN.md` §4, `bench/RIG-BENCH-32GB.md`): every FE/rev/period/border the direct
+   construction can build *at all* finishes on the two **cheap** rungs of the adaptive
+   ladder — forward(`AM_CAP0`=50k) or Brzozowski(4·`AM_CAP0`=200k subsets), peaking under
+   ~150k subsets in milliseconds to a few seconds.  The cases the direct construction is
+   bad at (the "tail" family) blow straight past the cheap rungs into millions of subsets
+   and gigabytes over hundreds of seconds.  So the cheap rungs are a clean classifier:
+   `let` runs them first; if they succeed the ladder answer is returned unchanged
+   (`via=ladder`, byte-for-byte identical to `AM_AUTOLEARN=0`); if they fail the whole
+   construction is handed to `learn_pred` (`via=learnfe`), whose result is *proved*
+   language-equal to the predicate by the recurrence check (§2) and is the same minimal
+   DFA the ladder would have produced — but which wins the blow-up cases.
+
+This is **sequential**, not a thread race: no shared-memory-budget contention, and no
+attempt to cancel an in-flight subset construction (the process runs `panic = "abort"`,
+so a cancelled ladder thread reaching its last-resort `expect` would abort the process).
+The probe reuses the ladder's own cheap rungs, so it adds no measurable cost on easy
+inputs (thue-morse 1 ms, single3 4 ms, single5 212 ms — identical with `AM_AUTOLEARN`
+on and off).
+
+**tail-c, default settings** (`AM_MEM_MB=2048`), which the direct `let FE` cannot finish
+at all under the default budget (it needs 448 s and 2818 MB, §6.2 / `bench/RIG-BENCH-32GB.md`):
+
+    def T 2 6 0 05 23 44 42 51 10 000010
+    let FE(i,j,l) A t. t < l => T[i+t] = T[j+t]
+    OK let FE(i,j,l) states=1382 peak=8767 ms=16058 via=learnfe kind=fe eqs=139 ces=1381 mqs=5992969
+
+16 s, ~230 MB RSS, verified — faster than Walnut `CCLS` (28.5 s on the 32 GB rig).
+tail-c rev (1442) and period (1861) hand off identically.
+
+**Correctness gate.**  `tools/fuzz_autolearn.py` runs the same binary with
+`AM_AUTOLEARN=1` and `=0` over the panel plus PRISM-drawn sequences and requires the
+identical minimal state count *and* the identical accepted-tuple set (`enum`) on every
+case both finish, and requires that no near-miss / non-shaped `let` is ever detected:
+**210 pairs, 0 disagreements, 0 misfires.**  (Non-FE `let`s are unaffected — the detector
+does not fire.)  `AM_AUTOLEARN=0` is the switch the benchmarks use to time the two paths
+separately.

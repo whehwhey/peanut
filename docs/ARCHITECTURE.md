@@ -23,6 +23,8 @@ engine/src/
   symbolic.rs    symbolic (MONA-style) projection/determinization (bench/BDD-RESULTS.md, AM_STRATEGY)
   antichain.rs   closed sentences answered by NFA emptiness/universality instead of
                  determinization (docs/ANTICHAIN.md, AM_ANTICHAIN, default ON)
+  simsub.rs      simulation-based subsumption inside the subset construction
+                 (docs/SIMSUB.md, AM_SIMSUB, default OFF)
   compat.rs      Walnut-compatibility mode: run Walnut command scripts unchanged (docs/WALNUT-COMPAT.md)
   transducer.rs  finite-state transducers and Dekking-style transduction (docs/BREADTH.md)
   negbase.rs     negative-base numeration systems, `msd_neg_k` (docs/BREADTH.md)
@@ -149,6 +151,7 @@ a query arrives
   |
   +-- every existential projection, closed or open:
         symbolic.rs (AM_STRATEGY, DEFAULT OFF) -- skipped
+        simsub.rs   (AM_SIMSUB,   DEFAULT OFF) -- skipped
         det_par.rs  (AM_PAR,      DEFAULT min(8, cores-2)) -- flat, bitset-packed
         subset construction, frontier-parallel, then the same four-rung ladder:
           forward(AM_CAP0) -> Brzozowski(4*AM_CAP0) -> forward(AM_CAP)

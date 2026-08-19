@@ -453,6 +453,11 @@ impl Dfa {
         if crate::symbolic::enabled() {
             if let Some(d) = crate::symbolic::exists(self, var) { return d; }
         }
+        // AM_SIMSUB: simulation-subsumed subset construction (engine/src/simsub.rs),
+        // default off; `None` means it declined and the ordinary ladder must run.
+        if crate::simsub::enabled() {
+            if let Some(d) = crate::simsub::exists(self, var) { return d; }
+        }
         if det_par::fast_enabled() {
             let fast = self.exists_fast(var);
             if det_par::verify() { det_par::assert_same("exists", &self.exists_ref(var), &fast); }
@@ -496,6 +501,14 @@ impl Dfa {
                                     brz(cap0.saturating_mul(4).max(200_000)) } {
                 if dbg { eprintln!("    exists({}): forward > {} subsets; Brzozowski(small) ok, {} states", var, cap0, d.nstates); }
                 d }
+            else if crate::autolearn::probe_active() {
+                // Auto-learnfe cheap probe: the two cheap rungs failed, so this is a
+                // hard case.  Record it and bail with a throwaway (the caller discards
+                // it and hands off to learn_pred) instead of grinding the expensive rungs.
+                crate::autolearn::set_gave_up();
+                if dbg { eprintln!("    exists({}): cheap rungs failed under probe; handing off to learnfe", var); }
+                return Dfa::constant(self.k, nfa.vars.clone(), false);
+            }
             else if let Some(d) = { crate::progress::phase("forward", var);
                                     det_par::determinize_capped(&nfa, cap) } {
                 if dbg { eprintln!("    exists({}): Brzozowski(small) failed; forward(big) ok", var); }
@@ -566,6 +579,13 @@ impl Dfa {
                                     brz(cap0.saturating_mul(4).max(200_000)) } {
                 if dbg { eprintln!("    exists({}): forward > {} subsets; Brzozowski(small) ok, {} states", var, cap0, d.nstates); }
                 d }
+            else if crate::autolearn::probe_active() {
+                // Auto-learnfe cheap probe (see engine/src/autolearn.rs): both cheap
+                // rungs failed, so hand off to learn_pred rather than grind the rest.
+                crate::autolearn::set_gave_up();
+                if dbg { eprintln!("    exists({}): cheap rungs failed under probe; handing off to learnfe", var); }
+                return Dfa::constant(self.k, nfa.vars.clone(), false);
+            }
             else if let Some(d) = { crate::progress::phase("forward", var);
                                     nfa.determinize_capped(cap) } {
                 if dbg { eprintln!("    exists({}): Brzozowski(small) failed; forward(big) ok", var); }

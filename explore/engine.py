@@ -19,6 +19,13 @@ Environment overrides:  AM_MEM_MB (per-engine budget, default 1536)
                         AM_WORKERS (hard cap on parallelism)
                         AM_FLOOR_MB (system free-RAM floor, default 6144)
 
+Portability (2026-08-19):  runs on macOS and on Windows (the "peanut-rig" Dell).  The
+binary is `peanut.exe` on win32; the mac-only probes (`vm_stat`, `ps`, the
+`kern.memorystatus_vm_pressure_level` sysctl) are never invoked off darwin -- there
+psutil is the single source of truth and the pressure level is a constant 1 (normal),
+so admission control degrades to the free-RAM floor alone.  macOS behaviour is
+unchanged.
+
 Reads/writes: no results/*.json artifacts referenced directly (see code for any docs/ or in-memory-only use).
 
 Run:
@@ -40,6 +47,10 @@ except ImportError:                                   # system python3 has no ps
     class _Proc:
         def __init__(self, pid): self.pid = pid
         def memory_info(self):
+            if sys.platform != "darwin":
+                # no `ps -o rss=` to lean on: report 0 so the watchdog never kills on a
+                # number it cannot measure (the engine's own AM_MEM_MB budget still holds)
+                return _MI(0)
             try:
                 out = subprocess.run(["ps", "-o", "rss=", "-p", str(self.pid)],
                                      capture_output=True, text=True, timeout=2).stdout.strip()
@@ -54,6 +65,8 @@ except ImportError:                                   # system python3 has no ps
         Process = _Proc
         @staticmethod
         def virtual_memory():
+            if sys.platform != "darwin":
+                return _VM(1 << 40)                    # unknown: do not block
             try:
                 out = subprocess.run(["vm_stat"], capture_output=True, text=True, timeout=2).stdout
             except Exception:
@@ -69,10 +82,15 @@ except ImportError:                                   # system python3 has no ps
     psutil = _psutil
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ENGINE = os.path.join(ROOT, "engine/target/release/peanut")   # renamed from automatheus 2026-08-17
+IS_WIN = sys.platform.startswith("win")
+IS_MAC = sys.platform == "darwin"
+_EXE = ".exe" if IS_WIN else ""
+# renamed automatheus -> peanut 2026-08-17; .exe on Windows
+ENGINE = os.path.join(ROOT, "engine", "target", "release", "peanut" + _EXE)
 if not os.path.exists(ENGINE):                                # fall back to the old name
-    _old = os.path.join(ROOT, "engine/target/release/automatheus")
+    _old = os.path.join(ROOT, "engine", "target", "release", "automatheus" + _EXE)
     if os.path.exists(_old): ENGINE = _old
+if "AM_ENGINE" in os.environ: ENGINE = os.environ["AM_ENGINE"]
 
 MEM_MB   = int(os.environ.get("AM_MEM_MB", "1536"))   # per-engine allocator budget
 FLOOR_MB = int(os.environ.get("AM_FLOOR_MB", "6144")) # never launch if free RAM below this
@@ -86,7 +104,13 @@ def free_mb():
     return psutil.virtual_memory().available >> 20
 
 def pressure_level():
-    """macOS kern.memorystatus_vm_pressure_level: 1 normal, 2 warn, 4 critical."""
+    """macOS kern.memorystatus_vm_pressure_level: 1 normal, 2 warn, 4 critical.
+
+    Off darwin there is no such notion (Windows/Linux reclaim rather than signal), so we
+    report 1 = normal without shelling out; admission control then rests on the free-RAM
+    floor, which is the guard that actually matters on a 64 GB rig."""
+    if not IS_MAC:
+        return 1
     try:
         return int(subprocess.run(["sysctl", "-n", "kern.memorystatus_vm_pressure_level"],
                                   capture_output=True, text=True, timeout=2).stdout.strip() or 1)
@@ -145,11 +169,15 @@ def _cleanup():
     for p in procs: _kill(p)
 
 atexit.register(_cleanup)
-for _sig in (signal.SIGINT, signal.SIGTERM):
+# SIGINT/SIGTERM exist everywhere Python runs; SIGHUP and friends do not exist on
+# Windows, so the set is built by name and anything missing is simply skipped.
+for _name in ("SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"):
+    _sig = getattr(signal, _name, None)
+    if _sig is None: continue
     try:
         signal.signal(_sig, lambda s, f: (_cleanup(), sys.exit(128 + s)))
-    except ValueError:
-        pass  # not main thread
+    except (ValueError, OSError, RuntimeError, AttributeError):
+        pass  # not the main thread, or the platform will not let us handle it
 threading.Thread(target=_watchdog, daemon=True).start()
 
 class Result:
@@ -175,7 +203,8 @@ def run(src, timeout=60, mem_mb=None, cap=None, env=None):
     _admit()
     t0 = time.time()
     p = subprocess.Popen([ENGINE], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE, text=True, env=e)
+                         stderr=subprocess.PIPE, text=True, encoding="utf-8",
+                         errors="replace", env=e)
     kill_mb = int((mem_mb or MEM_MB) * 1.5) + 256
     with _lock: _children[p.pid] = (p, kill_mb); _stats["launched"] += 1
     timed_out = False
@@ -209,7 +238,8 @@ def run_stream(src, on_event=None, timeout=600, mem_mb=None, cap=None, env=None,
     _admit()
     t0 = time.time()
     p = subprocess.Popen([ENGINE], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE, text=True, bufsize=1, env=e)
+                         stderr=subprocess.PIPE, text=True, encoding="utf-8",
+                         errors="replace", bufsize=1, env=e)
     kill_mb = int((mem_mb or MEM_MB) * 1.5) + 256
     with _lock: _children[p.pid] = (p, kill_mb); _stats["launched"] += 1
     if on_spawn:

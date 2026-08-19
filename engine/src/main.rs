@@ -8,6 +8,7 @@
 //! that Python wrapper, never with unguarded parallel instances: several
 //! engines racing on the same machine can exhaust memory and lock it up.
 mod antichain;
+mod autolearn;
 mod compat;
 mod det_par;
 mod dfa;
@@ -22,6 +23,7 @@ mod negbase;
 mod ostrowski;
 mod picture;
 mod progress;
+mod simsub;
 mod symbolic;
 mod transducer;
 
@@ -489,6 +491,63 @@ steps={} peak={} ms={}{}",
                 let params: Vec<String> = rest[op+1..cp].split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
                 let body = rest[cp+1..].trim();
                 let t0 = Instant::now();
+
+                // AM_AUTOLEARN (default on): if the body is exactly one of the
+                // self-verifying predicate shapes (FE / rev / period / border), probe the
+                // ordinary ladder cheaply; if it cannot build it cheaply, hand the whole
+                // construction to `learn_pred` (guess-and-verify).  See autolearn.rs.
+                // The learned automaton is *proved* language-equal to the predicate, so
+                // this returns the same minimal DFA the ladder would, on every case the
+                // ladder can finish -- but wins the hard cases (tail-c: 448 s -> ~15 s).
+                let shape = if autolearn::enabled() {
+                    logic::lex(body).ok()
+                        .and_then(|toks| logic::Parser::new(toks, "T").parse().ok())
+                        .and_then(|ast| autolearn::detect(&ast, &params))
+                } else { None };
+
+                if let Some(shape) = shape {
+                    // 1. cheap-ladder probe
+                    dfa::peak_reset();
+                    autolearn::probe_begin();
+                    let probed = logic::compile_str(d.k, d, &defs, body);
+                    autolearn::probe_end();
+
+                    if let Ok(a) = probed {
+                        if !autolearn::gave_up() {
+                            // Cheap rungs succeeded: identical to AM_AUTOLEARN=0.
+                            let missing: Vec<&String> = params.iter().filter(|p| !a.vars.contains(p)).collect();
+                            let mut vars = a.vars.clone();
+                            for p in &missing { vars.push((*p).clone()); }
+                            vars.sort();
+                            let a2 = numsys::restrict(&a.extend_vars(&vars));
+                            println!("OK let {}({}) states={} peak={} ms={} via=ladder", name, params.join(","),
+                                     a2.nstates, dfa::peak_get(), t0.elapsed().as_millis());
+                            defs.insert(name, (params, a2));
+                            continue;
+                        }
+                    }
+                    // 2. hand off to guess-and-verify
+                    match learn::Spec::builtin(shape.kind) {
+                        Ok(spec) => {
+                            dfa::peak_reset();
+                            match learn::learn_pred(d, &defs, &spec) {
+                                Ok((a, st)) => {
+                                    // rename canonical (i,j,l / ...) -> user parameter names
+                                    let a2 = a.rename(&|v| shape.user_name(v));
+                                    println!("OK let {}({}) states={} peak={} ms={} via=learnfe \
+kind={} eqs={} ces={} mqs={}", name, params.join(","), a2.nstates, dfa::peak_get(),
+                                             t0.elapsed().as_millis(), shape.kind.name(), st.eqs, st.ces, st.mqs);
+                                    defs.insert(name, (params, a2));
+                                }
+                                Err(e) => println!("ERR let {} (via learnfe): {}", name, e),
+                            }
+                        }
+                        Err(e) => println!("ERR let {}: {}", name, e),
+                    }
+                    continue;
+                }
+
+                // ordinary path (no shape, or AM_AUTOLEARN=0)
                 dfa::peak_reset();
                 match logic::compile_str(d.k, d, &defs, body) {
                     Ok(a) => {
