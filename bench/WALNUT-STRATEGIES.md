@@ -114,8 +114,8 @@ Results: `bench/walnut_strategies_results.json` (raw), folded into
 
 ## Credit
 
-This whole exercise -- rerunning against Brzozowski/OTF instead of only the
-default -- is John Nicol's correction. He also confirmed `learnfe` (Peanut's FE
-construction via self-verifying predicates) is a reimplementation of an idea from
-Bachir Khodier's thesis, which he is folding into Walnut 8 directly; see the note
-in `BENCHMARKS.md` and `docs/LEARNFE.md`.
+This whole exercise -- rerunning against Brzozowski/OTF (documented in Walnut's
+CHANGELOG for 7.0+) instead of only the default -- follows a correction from John
+Nicol, Walnut's developer. `learnfe` (Peanut's FE construction via self-verifying
+predicates) is a reimplementation of an idea from Bachir Khodier's thesis
+(arXiv:2507.19717); see the note in `BENCHMARKS.md` and `docs/LEARNFE.md`.

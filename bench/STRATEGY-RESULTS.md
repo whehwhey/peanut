@@ -48,9 +48,10 @@ Walnut's default strategy only, and is withdrawn. What remains true:
    prism-1, single4, single5, single6 (2-40x); Walnut's best faster on single3 (0.4 s vs 1.5 s),
    tail-a (66 s vs 139 s), tail-b (163 s vs 168 s) and tail-c (10.6 s vs 14.2 s). On the four
    Tribonacci queries Peanut is faster on all four (learnfe on FE: 0.07 s vs 62 s).
-3. **`learnfe` (a reimplementation of Khodier's self-verifying predicates, which Nicol is building
-   into Walnut 8) is the largest single gap**: Tribonacci FE in 0.07 s / <1 MB against 62 s for
-   the best Walnut strategy. That gap will close when Walnut 8 ships the same construction.
+3. **`learnfe` (a reimplementation of Khodier's self-verifying predicates, arXiv:2507.19717 /
+   Khodier 2026 thesis) is the largest single gap**: Tribonacci FE in 0.07 s / <1 MB against 62 s
+   for the best Walnut strategy. This is a construction advantage, not an engine one; any prover
+   that adopts the same self-verifying-predicate method would close it.
 4. Correctness cross-check stands: every state count agrees to the dead state.
 
 Peanut's case is therefore: an independent implementation that agrees with Walnut everywhere
