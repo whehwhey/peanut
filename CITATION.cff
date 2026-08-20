@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use Peanut in your research, please cite it."
+title: "Peanut: a decision procedure for automatic sequences"
+authors:
+  - family-names: Hingston
+    given-names: Andrew
+repository-code: "https://github.com/whehwhey/peanut"
+url: "https://github.com/whehwhey/peanut"
+abstract: >-
+  Peanut is a first-order decision procedure for automatic sequences (a
+  Walnut-style prover written in Rust), with a parallel determinization core,
+  a guess-and-verify construction for the equality-of-factors predicate,
+  base-k / Fibonacci / Tribonacci / Pell numeration, and an in-browser
+  WebAssembly build.
+license: MIT
+version: "0.1.0"
+date-released: "2026-08-17"
+# TODO: add doi: once the JOSS paper / arXiv software note is published.
