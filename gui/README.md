@@ -4,21 +4,26 @@ A local web front end for the engine. Standard library only — no build step, n
 dependencies to install.
 
 ```
-python3 gui/serve.py            # http://0.0.0.0:7373, prints the LAN URL
+python3 gui/serve.py            # http://127.0.0.1:7373 (loopback only, default)
+python3 gui/serve.py --lan       # http://0.0.0.0:7373, reachable on your LAN (phone)
 python3 gui/serve.py --port 8080
 ```
 
-It prints something like
+**Phone / LAN access:** the server binds loopback only by default. Pass `--lan` to
+expose it on `0.0.0.0` so you can open it from a phone or another machine on the same
+network. It prints something like
 
 ```
   Peanut
   local   http://127.0.0.1:7373
   LAN     http://192.168.1.24:7373
+  SECURITY: bound to the network -- anyone who can reach this host can
+            POST /api/run and execute engine scripts. Trusted LANs only.
   engine  /Users/andrew/maths/engine/target/release/peanut   budget 1536 MB/job
 ```
 
-so you can open it on a phone on the same network. Build the engine first if it is
-missing: `cd engine && cargo build --release`.
+Without `--lan` only `127.0.0.1` is printed. Build the engine first if it is missing:
+`cd engine && cargo build --release`.
 
 ## Views
 
@@ -77,8 +82,12 @@ free RAM before a job starts, an RSS watchdog, `AM_MEM_MB` inside the engine, an
 system LaunchAgent above everything. The per-job budget and timeout are set in the
 playground; there is no path in the GUI that runs an engine outside the runner.
 
-The server binds `0.0.0.0`, which is the point (phones), and it runs whatever formula
-script it is sent. Anyone on your network can use it. Don't expose it to the internet.
+The server binds `127.0.0.1` by default, so nothing off-box can reach it. Pass `--lan`
+to bind `0.0.0.0` for phone/LAN use; when you do, it runs whatever formula script it is
+sent, so anyone on your network can use it; keep it to trusted LANs and never expose it
+to the internet. Engine-backed endpoints answer `503 {"waiting": ...}` instead of
+hanging when the box is out of RAM (the admission floor is clamped to 40% of total RAM
+on small machines).
 
 ## API
 

@@ -501,7 +501,7 @@ steps={} peak={} ms={}{}",
                 // ladder can finish -- but wins the hard cases (tail-c: 448 s -> ~15 s).
                 let shape = if autolearn::enabled() {
                     logic::lex(body).ok()
-                        .and_then(|toks| logic::Parser::new(toks, "T").parse().ok())
+                        .and_then(|toks| logic::Parser::new(toks, &d.name).parse().ok())
                         .and_then(|ast| autolearn::detect(&ast, &params))
                 } else { None };
 
@@ -526,7 +526,10 @@ steps={} peak={} ms={}{}",
                             continue;
                         }
                     }
-                    // 2. hand off to guess-and-verify
+                    // 2. hand off to guess-and-verify; on ANY failure fall through to
+                    // the ordinary full ladder below -- the probe only ruled out the
+                    // cheap rungs, so the expensive rungs may still answer.
+                    let mut handed_off = false;
                     match learn::Spec::builtin(shape.kind) {
                         Ok(spec) => {
                             dfa::peak_reset();
@@ -537,14 +540,17 @@ steps={} peak={} ms={}{}",
                                     println!("OK let {}({}) states={} peak={} ms={} via=learnfe \
 kind={} eqs={} ces={} mqs={}", name, params.join(","), a2.nstates, dfa::peak_get(),
                                              t0.elapsed().as_millis(), shape.kind.name(), st.eqs, st.ces, st.mqs);
-                                    defs.insert(name, (params, a2));
+                                    defs.insert(name.clone(), (params.clone(), a2));
+                                    handed_off = true;
                                 }
-                                Err(e) => println!("ERR let {} (via learnfe): {}", name, e),
+                                Err(e) => println!("WARN let {} learnfe handoff failed ({}); \
+falling back to the full ladder", name, e),
                             }
                         }
-                        Err(e) => println!("ERR let {}: {}", name, e),
+                        Err(e) => println!("WARN let {} no learner spec ({}); falling back \
+to the full ladder", name, e),
                     }
-                    continue;
+                    if handed_off { continue; }
                 }
 
                 // ordinary path (no shape, or AM_AUTOLEARN=0)

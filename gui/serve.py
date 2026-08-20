@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Peanut — local web front end for the engine.
 
-    python3 gui/serve.py            # http://0.0.0.0:7373, LAN URL printed
+    python3 gui/serve.py            # http://127.0.0.1:7373 (loopback only)
+    python3 gui/serve.py --lan      # http://0.0.0.0:7373, reachable on the LAN (phone)
     python3 gui/serve.py --port 8080
 
 Python standard library only.  Every engine process is launched through
@@ -441,6 +442,16 @@ class Handler(BaseHTTPRequestHandler):
     def _err(self, msg, code=400):
         self._json({"error": msg}, code)
 
+    def _admitted(self, mem_mb=None):
+        """True if an engine may launch now; otherwise answer 503 + {waiting} and
+        return False.  Keeps a starved small machine from hanging the request
+        forever inside engine._admit()."""
+        waiting = engine.admit_status(mem_mb)
+        if waiting is None:
+            return True
+        self._json({"waiting": waiting}, 503)
+        return False
+
     def _body(self):
         n = int(self.headers.get("Content-Length") or 0)
         if n > MAX_BODY:
@@ -507,6 +518,8 @@ class Handler(BaseHTTPRequestHandler):
                 script = (b.get("script") or "").strip()
                 if not script:
                     return self._err("empty script")
+                if not self._admitted(b.get("mem_mb")):
+                    return
                 r = run_script(script, timeout=int(b.get("timeout", 60)),
                                mem_mb=b.get("mem_mb"), cap=b.get("cap"))
                 return self._json(result_payload(r))
@@ -515,6 +528,8 @@ class Handler(BaseHTTPRequestHandler):
                 script = (b.get("script") or "").strip()
                 if not script:
                     return self._err("empty script")
+                if not self._admitted(b.get("mem_mb")):
+                    return
                 reap_jobs()
                 job = Job(script, int(b.get("timeout", 600)), b.get("mem_mb"), b.get("cap"))
                 with JOBS_LOCK:
@@ -551,6 +566,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def _seq(self, qs):
         # the tape asks for a few thousand; the Shapes square asks for N^2 up to 512^2
+        if not self._admitted():
+            return
         n = max(1, min(int(qs.get("n", ["240"])[0]), 300000))
         r = run_script(self._script_for(qs, f"seq {n}"), timeout=30)
         for l in parse_stdout(r.stdout):
@@ -562,6 +579,8 @@ class Handler(BaseHTTPRequestHandler):
         name = qs.get("name", ["T"])[0]
         if not re.fullmatch(r"[A-Za-z_]\w*", name):
             return self._err("bad predicate name")
+        if not self._admitted(qs.get("mem_mb", [None])[0]):
+            return
         script = self._script_for(qs, f"export {name}")
         r = run_script(script, timeout=int(qs.get("timeout", ["120"])[0]),
                        mem_mb=qs.get("mem_mb", [None])[0])
@@ -579,6 +598,8 @@ class Handler(BaseHTTPRequestHandler):
         j0 = int(qs.get("j0", ["0"])[0])
         size = max(1, min(int(qs.get("size", ["96"])[0]), 512))
         l = max(0, int(qs.get("l", ["4"])[0]))
+        if not self._admitted():
+            return
         r = run_script(self._script_for(qs, f"fe_map {i0} {j0} {size} {l}"),
                        timeout=int(qs.get("timeout", ["120"])[0]))
         for line in parse_stdout(r.stdout):
@@ -598,6 +619,8 @@ class Handler(BaseHTTPRequestHandler):
         i0 = max(0, int(qs.get("i0", ["0"])[0]))
         j0 = max(0, int(qs.get("j0", ["0"])[0]))
         scale = max(1, int(qs.get("scale", ["1"])[0]))
+        if not self._admitted(qs.get("mem_mb", [None])[0]):
+            return
         script = self._script_for(qs, f"pic {name} {w} {h} {i0} {j0} {scale}")
         r = run_script(script, timeout=int(qs.get("timeout", ["120"])[0]),
                        mem_mb=qs.get("mem_mb", [None])[0])
@@ -669,10 +692,17 @@ def lan_ip():
 
 def main(argv):
     port = 7373
-    host = "0.0.0.0"
+    # Bind loopback by DEFAULT: POST /api/run executes arbitrary engine scripts, so
+    # the server must not be reachable off-box unless asked for.  --lan opts into
+    # 0.0.0.0 (phone / other machines on the LAN); --host wins if given explicitly.
+    host = "127.0.0.1"
+    lan = False
     for i, a in enumerate(argv):
         if a in ("--port", "-p") and i + 1 < len(argv):
             port = int(argv[i + 1])
+        if a == "--lan":
+            lan = True
+            host = "0.0.0.0"
         if a == "--host" and i + 1 < len(argv):
             host = argv[i + 1]
     if not os.path.exists(engine.ENGINE):
@@ -684,7 +714,12 @@ def main(argv):
     ip = lan_ip()
     print("\n  Peanut")
     print(f"  local   http://127.0.0.1:{port}")
-    print(f"  LAN     http://{ip}:{port}")
+    if lan or host not in ("127.0.0.1", "localhost"):
+        print(f"  LAN     http://{ip}:{port}")
+        print("  SECURITY: bound to the network - anyone who can reach this host can")
+        print("            POST /api/run and execute engine scripts. Trusted LANs only.")
+    else:
+        print("  (loopback only; pass --lan to expose on your LAN, e.g. from a phone)")
     print(f"  engine  {engine.ENGINE}   budget {engine.MEM_MB} MB/job\n")
     try:
         srv.serve_forever()

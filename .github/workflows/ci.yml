@@ -17,10 +17,28 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: engine
+      - name: no hardcoded sequence name in the parser call
+        # The `Parser::new(toks, "T")` literal has been reintroduced three times and
+        # each time silently disables shape detection / indexing for every non-"T"
+        # sequence. Fail the build if it comes back; the name must be threaded through.
+        run: |
+          if grep -rn 'Parser::new(toks, "T")' engine/src/; then
+            echo "::error::hardcoded Parser::new(toks, \"T\") reintroduced -- use the sequence name"
+            exit 1
+          fi
+      - name: GUI frontend ships (static assets present, seed-derived css)
+        run: |
+          test -n "$(ls -A gui/static)" && grep -q PEANUT_DESIGN_SEED gui/static/style.css
       - name: build
         run: cargo build --release --manifest-path engine/Cargo.toml
-      - name: integration tests (engine/tests/cli.rs)
+      - name: integration tests (engine/tests/cli.rs), differentially verified
+        # AM_FAST_VERIFY builds every determinization/minimization both ways and
+        # asserts identity (det_par::assert_same) -- the repo's own reference
+        # checks, now running on every push instead of only under the bench env.
+        env: { AM_FAST_VERIFY: "1" }
         run: cargo test --release --manifest-path engine/Cargo.toml
+      - name: independent checker self-test (research/referee/checker_v0.py)
+        run: python3 research/referee/checker_v0.py --selftest engine/target/release/peanut
       # Opt into these once the tree is clean for them; don't gate on them blind:
       # - run: cargo fmt --check --manifest-path engine/Cargo.toml
       # - run: cargo clippy --release --manifest-path engine/Cargo.toml -- -D warnings

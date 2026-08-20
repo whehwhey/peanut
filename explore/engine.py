@@ -93,7 +93,33 @@ if not os.path.exists(ENGINE):                                # fall back to the
 if "AM_ENGINE" in os.environ: ENGINE = os.environ["AM_ENGINE"]
 
 MEM_MB   = int(os.environ.get("AM_MEM_MB", "1536"))   # per-engine allocator budget
-FLOOR_MB = int(os.environ.get("AM_FLOOR_MB", "6144")) # never launch if free RAM below this
+def _total_mb():
+    """Total physical RAM in MB.  psutil when present; else sysctl (mac) or
+    /proc/meminfo (linux); else 'unknown' (1<<20 MB) so the clamp never fires."""
+    try:
+        t = psutil.virtual_memory().total                 # real psutil only; shim has none
+        if t and t < (1 << 50):
+            return t >> 20
+    except Exception:
+        pass
+    try:
+        if IS_MAC:
+            out = subprocess.run(["sysctl", "-n", "hw.memsize"],
+                                 capture_output=True, text=True, timeout=2).stdout.strip()
+            if out:
+                return int(out) >> 20
+        elif not IS_WIN:
+            with open("/proc/meminfo") as f:
+                for line in f:
+                    if line.startswith("MemTotal:"):
+                        return int(line.split()[1]) >> 10   # kB -> MB
+    except Exception:
+        pass
+    return 1 << 20                                          # unknown: do not clamp
+# never launch if free RAM below this.  On a small machine a 6 GB floor would
+# starve every job forever, so clamp the default to 40% of total RAM; an explicit
+# AM_FLOOR_MB is still honoured as the requested value but never above 40% total.
+FLOOR_MB = min(int(os.environ.get("AM_FLOOR_MB", "6144")), int(_total_mb() * 0.4))
 
 _children = {}            # pid -> (Popen, kill_mb)
 _lock = threading.Lock()
@@ -136,6 +162,16 @@ def _admit():
             warned = True
         time.sleep(0.5)
     _stats["waited_s"] += time.time() - t0
+
+def admit_status(mem_mb=None):
+    """Single non-blocking admission check.  Returns None if an engine can launch
+    right now, else a short 'free=XMB floor=YMB' string explaining the wait.  The GUI
+    uses this to answer 503 instead of hanging a request forever on a starved box."""
+    need = (mem_mb or MEM_MB)
+    f = free_mb(); p = pressure_level()
+    if f > FLOOR_MB + need and p <= 1:
+        return None
+    return f"free={f}MB floor={FLOOR_MB}MB need={need}MB pressure={p}"
 
 def _watchdog():
     while True:

@@ -80,3 +80,62 @@ fn learn_seqname_not_hardcoded_to_t() {
     assert!(o.contains("OK learn EQ(i,j)"), "custom learn under non-T: {o}");
     assert!(!o.contains("expected relation"), "{o}");
 }
+
+#[test]
+fn autolearn_fires_on_non_t_names() {
+    // regression: detect-parse once hardcoded "T", silently disabling auto-learnfe
+    // for every other sequence name (incl. all dfao-loaded numeration words).
+    let o = run("mode msd\ndfao W 2 0:0,1 1:1,0\n\
+                 let FE(i,j,l) A t. t < l => W[i+t] = W[j+t]\nquit\n");
+    assert!(o.contains("via="), "shape detection must fire for W-named seq: {o}");
+}
+
+#[test]
+fn autolearn_rejects_near_miss_shapes() {
+    // t <= l is NOT the FE predicate; detection must not fire (no via= tag),
+    // and the ordinary path must still answer.
+    let o = run(&format!("{TM}let G1(i,j,l) A t. t <= l => T[i+t] = T[j+t]\n\
+                 ? $G1(1,2,1)\nquit\n"));
+    let letline = o.lines().find(|l| l.starts_with("OK let G1")).unwrap_or("");
+    assert!(!letline.contains("via="), "near-miss must not be detected: {o}");
+    assert!(o.contains("FALSE"), "{o}");
+}
+
+fn run_env(script: &str, envs: &[(&str, &str)]) -> (String, Option<i32>) {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_peanut"));
+    for (k, v) in envs { cmd.env(k, v); }
+    let mut c = cmd.stdin(Stdio::piped()).stdout(Stdio::piped())
+        .spawn().expect("spawn peanut");
+    c.stdin.as_mut().unwrap().write_all(script.as_bytes()).unwrap();
+    let out = c.wait_with_output().expect("run peanut");
+    (String::from_utf8(out.stdout).expect("utf8"), out.status.code())
+}
+
+#[test]
+#[ignore] // slow + RAM-hungry: the full ladder on tail-a builds ~1165 states.
+fn learnfe_handoff_failure_falls_back_to_full_ladder() {
+    // regression: when the cheap probe gives up AND the learner is forced to
+    // give up (AM_LEARN_ITERS=1), the let must WARN and fall through to the
+    // ordinary FULL ladder -- which still answers (states=1165) -- not print ERR.
+    let (o, _) = run_env(
+        "mode msd\ndef T 2 7 0 02 15 04 36 43 01 10 1010100\n\
+         let FE(i,j,l) A t. t < l => T[i+t] = T[j+t]\nquit\n",
+        &[("AM_LEARN_ITERS", "1"), ("AM_AUTOLEARN", "1")]);
+    assert!(o.contains("WARN let FE") && o.contains("falling back"),
+            "handoff failure must WARN and fall back: {o}");
+    assert!(o.contains("OK let FE"), "full ladder must still answer: {o}");
+    assert!(!o.contains("ERR let FE"), "must not ERR out: {o}");
+}
+
+#[test]
+fn membudget_trips_cleanly_at_tiny_budget() {
+    // The innermost guard: a blowup construction under AM_MEM_MB=64 must exit
+    // with status 3 and print the ERR line on stdout -- the exit-code contract
+    // the Python runner and the (planned) records schema both depend on.
+    let (out, code) = run_env(
+        "mode msd\ndef T 2 7 0 05 23 44 42 51 16 66 0000100\n\
+         let FE(i,j,l) A t. t < l => T[i+t] = T[j+t]\nquit\n",
+        &[("AM_MEM_MB", "64"), ("AM_AUTOLEARN", "0")]);
+    assert_eq!(code, Some(3), "budget exit must be status 3: {out}");
+    assert!(out.contains("ERR memory budget exceeded"), "{out}");
+}
