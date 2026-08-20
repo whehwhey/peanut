@@ -1,0 +1,433 @@
+{
+"sequences": [
+{
+"id": "thue-morse",
+"name": "Thue\u2013Morse",
+"def": "def T 2 2 0 01 10 01",
+"note": "parity of the binary digit sum; overlap-free",
+"group": "classical"
+},
+{
+"id": "period-doubling",
+"name": "Period-doubling",
+"def": "def T 2 2 0 01 00 01",
+"note": "fixed point of 0\u219201, 1\u219200",
+"group": "classical"
+},
+{
+"id": "rudin-shapiro",
+"name": "Rudin\u2013Shapiro",
+"def": "def T 2 4 0 01 02 31 32 0011",
+"note": "parity of the count of 11 in binary",
+"group": "classical"
+},
+{
+"id": "paperfolding",
+"name": "Regular paperfolding",
+"def": "def T 2 4 0 01 21 03 23 0011",
+"note": "the dragon curve fold sequence",
+"group": "classical"
+},
+{
+"id": "cantor",
+"name": "Cantor",
+"def": "def T 3 2 0 010 111 01",
+"note": "indicator of a ternary expansion with no 1",
+"group": "classical"
+},
+{
+"id": "mephisto",
+"name": "Mephisto Waltz",
+"def": "def T 3 2 0 001 110 01",
+"note": "3-uniform, 001 / 110",
+"group": "classical"
+},
+{
+"id": "tribonacci-ish",
+"name": "Champion m=5",
+"def": "def T 2 5 0 01 43 30 33 24 10010",
+"note": "sweep champion: |FE| = 199, a sink state makes T thin",
+"group": "sweep"
+},
+{
+"id": "k3m3-a",
+"name": "k3m3 artefact A",
+"def": "def T 3 3 0 011 122 110 100",
+"note": "Walnut needs 444 s here; the engine 0.05 s",
+"group": "sweep"
+},
+{
+"id": "k3m3-b",
+"name": "k3m3 artefact B",
+"def": "def T 3 3 0 021 000 212 011",
+"note": "msd/lsd artefact case",
+"group": "sweep"
+},
+{
+"id": "prism-1",
+"name": "PRISM-1",
+"def": "def T 4 6 0 0305 4555 2321 0514 1023 4300 102202",
+"note": "k=4, m=6 random draw; |FE| = 467, Walnut OOMs",
+"group": "prism"
+},
+{
+"id": "prism-a",
+"name": "PRISM-a",
+"def": "def T 2 4 0 03 33 21 21 1101",
+"note": "random draw",
+"group": "prism"
+},
+{
+"id": "prism-d",
+"name": "PRISM-d",
+"def": "def T 3 3 0 021 121 010 101",
+"note": "random draw",
+"group": "prism"
+},
+{
+"id": "tail-a",
+"name": "tail-a",
+"def": "def T 2 7 0 02 15 04 36 43 01 10 1010100",
+"note": "censored tail: |FE| = 1165 at 6 GB",
+"group": "tail"
+},
+{
+"id": "tail-b",
+"name": "tail-b",
+"def": "def T 3 5 0 014 421 120 202 323 01100",
+"note": "learnfe only: |FE| = 1000",
+"group": "tail"
+},
+{
+"id": "tail-c",
+"name": "tail-c",
+"def": "def T 2 6 0 05 23 44 42 51 10 000010",
+"note": "the direct construction dies at 6 GB in both digit orders; learnfe gives 1382",
+"group": "tail"
+},
+{
+"id": "single3",
+"name": "[s\u2082 \u2261 1 mod 3]",
+"def": "def T 2 3 0 01 12 20 010",
+"note": "binary coding of the digit-sum group automaton; |FE| grows \u2248 3p\u2074",
+"group": "singleton"
+},
+{
+"id": "single4",
+"name": "[s\u2082 \u2261 1 mod 4]",
+"def": "def T 2 4 0 01 12 23 30 0100",
+"note": "binary coding of the digit-sum group automaton; |FE| grows \u2248 3p\u2074",
+"group": "singleton"
+},
+{
+"id": "single5",
+"name": "[s\u2082 \u2261 1 mod 5]",
+"def": "def T 2 5 0 01 12 23 34 40 01000",
+"note": "binary coding of the digit-sum group automaton; |FE| grows \u2248 3p\u2074",
+"group": "singleton"
+},
+{
+"id": "single6",
+"name": "[s\u2082 \u2261 1 mod 6]",
+"def": "def T 2 6 0 01 12 23 34 45 50 010000",
+"note": "binary coding of the digit-sum group automaton; |FE| grows \u2248 3p\u2074",
+"group": "singleton"
+},
+{
+"id": "single7",
+"name": "[s\u2082 \u2261 1 mod 7]",
+"def": "def T 2 7 0 01 12 23 34 45 56 60 0100000",
+"note": "binary coding of the digit-sum group automaton; |FE| grows \u2248 3p\u2074",
+"group": "singleton"
+},
+{
+"id": "gtm2",
+"name": "GTM 2 (s\u2082 mod 2)",
+"def": "def T 2 2 0 01 10 01",
+"note": "full output: the same automaton, nothing collapsed by the coding",
+"group": "gtm"
+},
+{
+"id": "gtm3",
+"name": "GTM 3 (s\u2082 mod 3)",
+"def": "def T 2 3 0 01 12 20 012",
+"note": "full output: the same automaton, nothing collapsed by the coding",
+"group": "gtm"
+},
+{
+"id": "gtm4",
+"name": "GTM 4 (s\u2082 mod 4)",
+"def": "def T 2 4 0 01 12 23 30 0123",
+"note": "full output: the same automaton, nothing collapsed by the coding",
+"group": "gtm"
+},
+{
+"id": "gtm5",
+"name": "GTM 5 (s\u2082 mod 5)",
+"def": "def T 2 5 0 01 12 23 34 40 01234",
+"note": "full output: the same automaton, nothing collapsed by the coding",
+"group": "gtm"
+},
+{
+"id": "gtm6",
+"name": "GTM 6 (s\u2082 mod 6)",
+"def": "def T 2 6 0 01 12 23 34 45 50 012345",
+"note": "full output: the same automaton, nothing collapsed by the coding",
+"group": "gtm"
+},
+{
+"id": "gtm7",
+"name": "GTM 7 (s\u2082 mod 7)",
+"def": "def T 2 7 0 01 12 23 34 45 56 60 0123456",
+"note": "full output: the same automaton, nothing collapsed by the coding",
+"group": "gtm"
+}
+],
+"examples": [
+{
+"id": "square-free",
+"name": "Square-free?",
+"script": "? ~ E i,n. n>=1 & (A t. t < n => T[i+t] = T[i+n+t])",
+"note": "no factor is ww",
+"group": "powers"
+},
+{
+"id": "has-square",
+"name": "A square, with witness",
+"script": "witness n>=1 & (A t. t < n => T[i+t] = T[i+n+t])",
+"note": "shortest (i,n) whose base-k word the automaton accepts",
+"group": "powers"
+},
+{
+"id": "cube-free",
+"name": "Cube-free?",
+"script": "? ~ E i,n. n>=1 & (A t. t < 2*n => T[i+t] = T[i+n+t])",
+"note": "no factor is www",
+"group": "powers"
+},
+{
+"id": "overlap-free",
+"name": "Overlap-free?",
+"script": "? ~ E i,n. n>=1 & (A t. t <= n => T[i+t] = T[i+n+t])",
+"note": "no factor of exponent above 2",
+"group": "powers"
+},
+{
+"id": "fourth-power-free",
+"name": "4th-power-free?",
+"script": "? ~ E i,n. n>=1 & (A t. t < 3*n => T[i+t] = T[i+n+t])",
+"note": "",
+"group": "powers"
+},
+{
+"id": "crit-exp",
+"name": "Critical exponent probe 7/3",
+"script": "? E i,n,L. n>=1 & 3*L >= 7*n & (A t. t+n < L => T[i+t] = T[i+n+t])",
+"note": "run the ladder 2/1 \u2026 5/1 to bracket the critical exponent",
+"group": "powers"
+},
+{
+"id": "crit-ladder",
+"name": "Critical exponent ladder",
+"script": "? E i,n,L. n>=1 & 1*L >= 2*n & (A t. t+n < L => T[i+t] = T[i+n+t])\n? E i,n,L. n>=1 & 3*L >= 7*n & (A t. t+n < L => T[i+t] = T[i+n+t])\n? E i,n,L. n>=1 & 2*L >= 5*n & (A t. t+n < L => T[i+t] = T[i+n+t])\n? E i,n,L. n>=1 & 3*L >= 8*n & (A t. t+n < L => T[i+t] = T[i+n+t])\n? E i,n,L. n>=1 & 1*L >= 3*n & (A t. t+n < L => T[i+t] = T[i+n+t])\n? E i,n,L. n>=1 & 2*L >= 7*n & (A t. t+n < L => T[i+t] = T[i+n+t])\n? E i,n,L. n>=1 & 1*L >= 4*n & (A t. t+n < L => T[i+t] = T[i+n+t])",
+"note": "the exponent is the last TRUE",
+"group": "powers"
+},
+{
+"id": "square-periods",
+"name": "Periods that admit a square",
+"script": "dfa n>=1 & (A t. t < n => T[i+t] = T[i+n+t])",
+"note": "the set of n such that some ww of period n occurs",
+"group": "powers"
+},
+{
+"id": "has-pal",
+"name": "Palindromic factors?",
+"script": "? E i,n. n>=3 & (A t,u. t+u+1 = n => T[i+t] = T[i+u])",
+"note": "",
+"group": "palindromes"
+},
+{
+"id": "arb-pal",
+"name": "Arbitrarily long palindromes?",
+"script": "? A n. E i,m. m >= n & (A t,u. t+u+1 = m => T[i+t] = T[i+u])",
+"note": "",
+"group": "palindromes"
+},
+{
+"id": "pal-positions",
+"name": "Palindrome of length 9 \u2014 positions",
+"script": "enum 120 (A t,u. t+u+1 = 9 => T[i+t] = T[i+u])",
+"note": "paints every position starting a length-9 palindrome onto the tape",
+"group": "palindromes"
+},
+{
+"id": "unbordered",
+"name": "Unbordered factor of every length?",
+"script": "? A n. n>=1 => E i. ~(E b,j. b >= 1 & b < n & j + b = i + n & (A t. t < b => T[i+t] = T[j+t]))",
+"note": "",
+"group": "borders"
+},
+{
+"id": "unbordered-lengths",
+"name": "Lengths admitting an unbordered factor",
+"script": "dfa E i. ~(E b,j. b >= 1 & b < n & j + b = i + n & (A t. t < b => T[i+t] = T[j+t]))",
+"note": "",
+"group": "borders"
+},
+{
+"id": "right-special",
+"name": "Right-special factors",
+"script": "let RS(i,n) E j. (A t. t < n => T[i+t] = T[j+t]) & T[i+n] != T[j+n]\nenum 80 $RS(i,4)",
+"note": "positions whose length-4 factor extends two ways",
+"group": "special"
+},
+{
+"id": "rs-count",
+"name": "Is every length right-special?",
+"script": "let RS(i,n) E j. (A t. t < n => T[i+t] = T[j+t]) & T[i+n] != T[j+n]\n? A n. E i. $RS(i,n)",
+"note": "",
+"group": "special"
+},
+{
+"id": "fe",
+"name": "FE \u2014 equality of factors",
+"script": "let FE(i,j,l) A t. t < l => T[i+t] = T[j+t]\nmem\nexport FE",
+"note": "the direct construction; the one Khodier's Open Problem 1 is about",
+"group": "fe"
+},
+{
+"id": "fe-learn",
+"name": "FE by guess-and-verify (learnfe)",
+"script": "learnfe FE\nmem\nexport FE",
+"note": "active learning against an LCP oracle, checked against the recurrence",
+"group": "fe"
+},
+{
+"id": "fe-use",
+"name": "Recurrence of a long factor",
+"script": "learnfe G\nwitness i < j & $G(i,j,60)\nfinite E j. j > i & $G(i,j,200)",
+"note": "where the length-60 factor at 0 recurs, and whether every factor recurs",
+"group": "fe"
+},
+{
+"id": "peltomaki",
+"name": "Peltom\u00e4ki extRS2 stack",
+"script": "let factorEq(i,n,m) A t. t < i => T[n+t] = T[m+t]\nlet isRS(i,n) E p,q. $factorEq(i,n,p) & $factorEq(i,n,q) & T[p+i] != T[q+i]\nlet extRS2(i,j,n) i<j & (E m1,m2. $isRS(j,m1) & $isRS(j,m2) & $factorEq(i,m1,m2) & $factorEq(i,n,m1) & T[m1+i] != T[m2+i])\n? E i,j,n. $extRS2(i,j,n)",
+"note": "the published Walnut OOM case; runs here in milliseconds",
+"group": "special"
+},
+{
+"id": "recurrent",
+"name": "Every factor occurs infinitely often?",
+"script": "? A i,n,N. E j. j >= N & (A t. t < n => T[i+t] = T[j+t])",
+"note": "",
+"group": "structure"
+},
+{
+"id": "mirror",
+"name": "Closed under reversal?",
+"script": "? A i,n. E j. (A t,u. t+u+1 = n => T[i+t] = T[j+u])",
+"note": "",
+"group": "structure"
+},
+{
+"id": "positions-1",
+"name": "Positions where T = 1",
+"script": "enum 200 T[i] = 1",
+"note": "paints the tape",
+"group": "structure"
+},
+{
+"id": "runs",
+"name": "Lengths of runs of 0",
+"script": "dfa E i. (A t. t < n => T[i+t] = 0)",
+"note": "",
+"group": "structure"
+},
+{
+"id": "ap",
+"name": "Arbitrarily long APs of step 3 that are constant 0",
+"script": "? A n. E i. (A t. t < n => T[i+3*t] = 0)",
+"note": "",
+"group": "structure"
+}
+],
+"shapes": [
+{
+"id": "eq",
+"name": "T[i] = T[j]",
+"body": "T[i]=T[j]",
+"note": "the agreement table: the sequence against itself",
+"pre": ""
+},
+{
+"id": "add",
+"name": "T[i+j] \u2014 the addition table",
+"body": "",
+"note": "the DFAO itself, one output letter per cell (no predicate)",
+"pre": "",
+"dfao": true
+},
+{
+"id": "addrow",
+"name": "T[i+j] = T[i]",
+"body": "T[i+j]=T[i]",
+"note": "where the addition table repeats its own row header",
+"pre": ""
+},
+{
+"id": "neq",
+"name": "T[i] \u2260 T[j]",
+"body": "T[i]!=T[j]",
+"note": "the complement of the agreement table",
+"pre": ""
+},
+{
+"id": "fe8",
+"name": "FE(i, j, 8) \u2014 equal length-8 factors",
+"body": "$FE(i,j,8)",
+"note": "the FE heatmap at a fixed length, drawn from the automaton instead of the LCP walk",
+"pre": "let FE(i,j,l) A t. t < l => T[i+t] = T[j+t]"
+},
+{
+"id": "fe-learn",
+"name": "FE(i, j, 32) via learnfe",
+"body": "$FE(i,j,32)",
+"note": "same picture, from the guess-and-verify construction",
+"pre": "learnfe FE"
+},
+{
+"id": "carry2",
+"name": "Sierpi\u0144ski \u2014 carry-free binary addition",
+"body": "(T[i]=0 & T[j]=0 & T[i+j]=0) | (T[i]=0 & T[j]=1 & T[i+j]=1) | (T[i]=0 & T[j]=2 & T[i+j]=2) | (T[i]=0 & T[j]=3 & T[i+j]=3) | (T[i]=0 & T[j]=4 & T[i+j]=4) | (T[i]=0 & T[j]=5 & T[i+j]=5) | (T[i]=0 & T[j]=6 & T[i+j]=6) | (T[i]=0 & T[j]=7 & T[i+j]=7) | (T[i]=0 & T[j]=8 & T[i+j]=8) | (T[i]=0 & T[j]=9 & T[i+j]=9) | (T[i]=1 & T[j]=0 & T[i+j]=1) | (T[i]=1 & T[j]=1 & T[i+j]=2) | (T[i]=1 & T[j]=2 & T[i+j]=3) | (T[i]=1 & T[j]=3 & T[i+j]=4) | (T[i]=1 & T[j]=4 & T[i+j]=5) | (T[i]=1 & T[j]=5 & T[i+j]=6) | (T[i]=1 & T[j]=6 & T[i+j]=7) | (T[i]=1 & T[j]=7 & T[i+j]=8) | (T[i]=1 & T[j]=8 & T[i+j]=9) | (T[i]=1 & T[j]=9 & T[i+j]=0) | (T[i]=2 & T[j]=0 & T[i+j]=2) | (T[i]=2 & T[j]=1 & T[i+j]=3) | (T[i]=2 & T[j]=2 & T[i+j]=4) | (T[i]=2 & T[j]=3 & T[i+j]=5) | (T[i]=2 & T[j]=4 & T[i+j]=6) | (T[i]=2 & T[j]=5 & T[i+j]=7) | (T[i]=2 & T[j]=6 & T[i+j]=8) | (T[i]=2 & T[j]=7 & T[i+j]=9) | (T[i]=2 & T[j]=8 & T[i+j]=0) | (T[i]=2 & T[j]=9 & T[i+j]=1) | (T[i]=3 & T[j]=0 & T[i+j]=3) | (T[i]=3 & T[j]=1 & T[i+j]=4) | (T[i]=3 & T[j]=2 & T[i+j]=5) | (T[i]=3 & T[j]=3 & T[i+j]=6) | (T[i]=3 & T[j]=4 & T[i+j]=7) | (T[i]=3 & T[j]=5 & T[i+j]=8) | (T[i]=3 & T[j]=6 & T[i+j]=9) | (T[i]=3 & T[j]=7 & T[i+j]=0) | (T[i]=3 & T[j]=8 & T[i+j]=1) | (T[i]=3 & T[j]=9 & T[i+j]=2) | (T[i]=4 & T[j]=0 & T[i+j]=4) | (T[i]=4 & T[j]=1 & T[i+j]=5) | (T[i]=4 & T[j]=2 & T[i+j]=6) | (T[i]=4 & T[j]=3 & T[i+j]=7) | (T[i]=4 & T[j]=4 & T[i+j]=8) | (T[i]=4 & T[j]=5 & T[i+j]=9) | (T[i]=4 & T[j]=6 & T[i+j]=0) | (T[i]=4 & T[j]=7 & T[i+j]=1) | (T[i]=4 & T[j]=8 & T[i+j]=2) | (T[i]=4 & T[j]=9 & T[i+j]=3) | (T[i]=5 & T[j]=0 & T[i+j]=5) | (T[i]=5 & T[j]=1 & T[i+j]=6) | (T[i]=5 & T[j]=2 & T[i+j]=7) | (T[i]=5 & T[j]=3 & T[i+j]=8) | (T[i]=5 & T[j]=4 & T[i+j]=9) | (T[i]=5 & T[j]=5 & T[i+j]=0) | (T[i]=5 & T[j]=6 & T[i+j]=1) | (T[i]=5 & T[j]=7 & T[i+j]=2) | (T[i]=5 & T[j]=8 & T[i+j]=3) | (T[i]=5 & T[j]=9 & T[i+j]=4) | (T[i]=6 & T[j]=0 & T[i+j]=6) | (T[i]=6 & T[j]=1 & T[i+j]=7) | (T[i]=6 & T[j]=2 & T[i+j]=8) | (T[i]=6 & T[j]=3 & T[i+j]=9) | (T[i]=6 & T[j]=4 & T[i+j]=0) | (T[i]=6 & T[j]=5 & T[i+j]=1) | (T[i]=6 & T[j]=6 & T[i+j]=2) | (T[i]=6 & T[j]=7 & T[i+j]=3) | (T[i]=6 & T[j]=8 & T[i+j]=4) | (T[i]=6 & T[j]=9 & T[i+j]=5) | (T[i]=7 & T[j]=0 & T[i+j]=7) | (T[i]=7 & T[j]=1 & T[i+j]=8) | (T[i]=7 & T[j]=2 & T[i+j]=9) | (T[i]=7 & T[j]=3 & T[i+j]=0) | (T[i]=7 & T[j]=4 & T[i+j]=1) | (T[i]=7 & T[j]=5 & T[i+j]=2) | (T[i]=7 & T[j]=6 & T[i+j]=3) | (T[i]=7 & T[j]=7 & T[i+j]=4) | (T[i]=7 & T[j]=8 & T[i+j]=5) | (T[i]=7 & T[j]=9 & T[i+j]=6) | (T[i]=8 & T[j]=0 & T[i+j]=8) | (T[i]=8 & T[j]=1 & T[i+j]=9) | (T[i]=8 & T[j]=2 & T[i+j]=0) | (T[i]=8 & T[j]=3 & T[i+j]=1) | (T[i]=8 & T[j]=4 & T[i+j]=2) | (T[i]=8 & T[j]=5 & T[i+j]=3) | (T[i]=8 & T[j]=6 & T[i+j]=4) | (T[i]=8 & T[j]=7 & T[i+j]=5) | (T[i]=8 & T[j]=8 & T[i+j]=6) | (T[i]=8 & T[j]=9 & T[i+j]=7) | (T[i]=9 & T[j]=0 & T[i+j]=9) | (T[i]=9 & T[j]=1 & T[i+j]=0) | (T[i]=9 & T[j]=2 & T[i+j]=1) | (T[i]=9 & T[j]=3 & T[i+j]=2) | (T[i]=9 & T[j]=4 & T[i+j]=3) | (T[i]=9 & T[j]=5 & T[i+j]=4) | (T[i]=9 & T[j]=6 & T[i+j]=5) | (T[i]=9 & T[j]=7 & T[i+j]=6) | (T[i]=9 & T[j]=8 & T[i+j]=7) | (T[i]=9 & T[j]=9 & T[i+j]=8)",
+"note": "C(i+j, i) is odd exactly when i+j carries nowhere (Kummer); valid for i, j < 512",
+"pre": "",
+"def": "def T 2 10 0 01 12 23 34 45 56 67 78 89 90 0123456789",
+"window": 512
+},
+{
+"id": "carry3",
+"name": "Pascal mod 3 \u2014 carry-free base-3 addition",
+"body": "(T[i]=0 & T[j]=0 & T[i+j]=0) | (T[i]=0 & T[j]=1 & T[i+j]=1) | (T[i]=0 & T[j]=2 & T[i+j]=2) | (T[i]=0 & T[j]=3 & T[i+j]=3) | (T[i]=0 & T[j]=4 & T[i+j]=4) | (T[i]=0 & T[j]=5 & T[i+j]=5) | (T[i]=0 & T[j]=6 & T[i+j]=6) | (T[i]=1 & T[j]=0 & T[i+j]=1) | (T[i]=1 & T[j]=1 & T[i+j]=2) | (T[i]=1 & T[j]=2 & T[i+j]=3) | (T[i]=1 & T[j]=3 & T[i+j]=4) | (T[i]=1 & T[j]=4 & T[i+j]=5) | (T[i]=1 & T[j]=5 & T[i+j]=6) | (T[i]=1 & T[j]=6 & T[i+j]=0) | (T[i]=2 & T[j]=0 & T[i+j]=2) | (T[i]=2 & T[j]=1 & T[i+j]=3) | (T[i]=2 & T[j]=2 & T[i+j]=4) | (T[i]=2 & T[j]=3 & T[i+j]=5) | (T[i]=2 & T[j]=4 & T[i+j]=6) | (T[i]=2 & T[j]=5 & T[i+j]=0) | (T[i]=2 & T[j]=6 & T[i+j]=1) | (T[i]=3 & T[j]=0 & T[i+j]=3) | (T[i]=3 & T[j]=1 & T[i+j]=4) | (T[i]=3 & T[j]=2 & T[i+j]=5) | (T[i]=3 & T[j]=3 & T[i+j]=6) | (T[i]=3 & T[j]=4 & T[i+j]=0) | (T[i]=3 & T[j]=5 & T[i+j]=1) | (T[i]=3 & T[j]=6 & T[i+j]=2) | (T[i]=4 & T[j]=0 & T[i+j]=4) | (T[i]=4 & T[j]=1 & T[i+j]=5) | (T[i]=4 & T[j]=2 & T[i+j]=6) | (T[i]=4 & T[j]=3 & T[i+j]=0) | (T[i]=4 & T[j]=4 & T[i+j]=1) | (T[i]=4 & T[j]=5 & T[i+j]=2) | (T[i]=4 & T[j]=6 & T[i+j]=3) | (T[i]=5 & T[j]=0 & T[i+j]=5) | (T[i]=5 & T[j]=1 & T[i+j]=6) | (T[i]=5 & T[j]=2 & T[i+j]=0) | (T[i]=5 & T[j]=3 & T[i+j]=1) | (T[i]=5 & T[j]=4 & T[i+j]=2) | (T[i]=5 & T[j]=5 & T[i+j]=3) | (T[i]=5 & T[j]=6 & T[i+j]=4) | (T[i]=6 & T[j]=0 & T[i+j]=6) | (T[i]=6 & T[j]=1 & T[i+j]=0) | (T[i]=6 & T[j]=2 & T[i+j]=1) | (T[i]=6 & T[j]=3 & T[i+j]=2) | (T[i]=6 & T[j]=4 & T[i+j]=3) | (T[i]=6 & T[j]=5 & T[i+j]=4) | (T[i]=6 & T[j]=6 & T[i+j]=5)",
+"note": "3 divides C(i+j, i) exactly when base-3 addition carries (Lucas/Kummer); i, j < 729",
+"pre": "",
+"def": "def T 3 7 0 012 123 234 345 456 560 601 0123456",
+"window": 729
+},
+{
+"id": "pow",
+"name": "i + j is a power of k",
+"body": "pow(i+j)",
+"note": "the anti-diagonals at the powers of the base",
+"pre": ""
+},
+{
+"id": "sq",
+"name": "a square of period j\u2212i starts at i",
+"body": "$FE(i,j,4) & i<j",
+"note": "pairs whose length-4 factors agree, above the diagonal",
+"pre": "let FE(i,j,l) A t. t < l => T[i+t] = T[j+t]"
+}
+]
+}

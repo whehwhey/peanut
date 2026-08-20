@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="peanut-title peanut-desc">
+  <title id="peanut-title">Peanut</title>
+  <desc id="peanut-desc">A chubby kawaii peanut mascot with dot eyes, blushed cheeks and a gentle smile.</desc>
+  <defs>
+    <path id="peanut-body" d="M128 22A54 54 0 0 1 170.3 109.6A20 20 0 0 0 171.8 136.1A62 62 0 0 1 128 242A62 62 0 0 1 84.2 136.1A20 20 0 0 0 85.7 109.6A54 54 0 0 1 128 22Z"/>
+    <clipPath id="peanut-clip"><use href="#peanut-body"/></clipPath>
+  </defs>
+
+  <use href="#peanut-body" fill="#EAB39A" stroke="#5F3825" stroke-width="6" stroke-linejoin="round"/>
+
+  <g clip-path="url(#peanut-clip)">
+    <g fill="none" stroke="#E48558" stroke-width="5" stroke-linecap="round" opacity="0.5">
+      <path d="M104 64c10 8 22 10 34 5"/>
+      <path d="M90 84c16 11 36 13 54 5"/>
+      <path d="M102 226c12 7 28 7 40 0"/>
+    </g>
+    <ellipse cx="100" cy="48" rx="14" ry="9" fill="#F0EFD1" opacity="0.7" transform="rotate(-24 100 48)"/>
+  </g>
+
+  <g>
+    <ellipse cx="90" cy="192" rx="14" ry="9" fill="#F8A0A0"/>
+    <ellipse cx="166" cy="192" rx="14" ry="9" fill="#F8A0A0"/>
+    <circle cx="108" cy="176" r="7.5" fill="#2E1D49"/>
+    <circle cx="148" cy="176" r="7.5" fill="#2E1D49"/>
+    <circle cx="110.5" cy="173.5" r="2.4" fill="#F8F7E8"/>
+    <circle cx="150.5" cy="173.5" r="2.4" fill="#F8F7E8"/>
+    <path d="M118 196c3.5 7 6.5 10 10 10s6.5-3 10-10" fill="none" stroke="#2E1D49" stroke-width="6" stroke-linecap="round"/>
+  </g>
+</svg>

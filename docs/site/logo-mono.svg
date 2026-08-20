@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" fill="none" role="img" aria-labelledby="peanut-mono-title">
+  <title id="peanut-mono-title">Peanut (monochrome mark)</title>
+  <g stroke="currentColor" color="#2E1D49" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M128 22A54 54 0 0 1 170.3 109.6A20 20 0 0 0 171.8 136.1A62 62 0 0 1 128 242A62 62 0 0 1 84.2 136.1A20 20 0 0 0 85.7 109.6A54 54 0 0 1 128 22Z"/>
+    <path d="M104 64c10 8 22 10 34 5" stroke-width="7"/>
+    <path d="M90 84c16 11 36 13 54 5" stroke-width="7"/>
+    <path d="M102 226c12 7 28 7 40 0" stroke-width="7"/>
+    <path d="M118 196c3.5 7 6.5 10 10 10s6.5-3 10-10"/>
+    <path d="M76 190l11 8M86 186l11 8M180 190l-11 8M170 186l-11 8" stroke-width="6"/>
+  </g>
+  <g fill="currentColor" color="#2E1D49">
+    <circle cx="108" cy="176" r="9"/>
+    <circle cx="148" cy="176" r="9"/>
+  </g>
+</svg>
