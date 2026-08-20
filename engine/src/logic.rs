@@ -566,7 +566,7 @@ numeration system {:?} (drop `numsys` to go back to base k)", ns.name));
 /// Convenience: lex, parse, and compile a formula string in one call.
 pub fn compile_str(k: usize, seq: &Dfao, defs: &Defs, src: &str) -> Result<Dfa, String> {
     let toks = lex(src)?;
-    let ast = Parser::new(toks, "T").parse()?;
+    let ast = Parser::new(toks, &seq.name).parse()?;
     // Antichain evaluation of closed sentences (engine/src/antichain.rs), default ON
     // since 2026-08-19, AM_ANTICHAIN=0 to disable; the module abstains (None) on any
     // shape it does not handle, falling through to here.

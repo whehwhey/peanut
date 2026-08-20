@@ -279,9 +279,9 @@ pub struct Spec {
     pub step: Option<Ast>,
 }
 
-fn parse_formula(src: &str) -> Result<Ast, String> {
+fn parse_formula(src: &str, word: &str) -> Result<Ast, String> {
     let toks = logic::lex(src)?;
-    let mut a = logic::Parser::new(toks, "T").parse()?;
+    let mut a = logic::Parser::new(toks, word).parse()?;
     rename_calls(&mut a, "H", HOLE);
     Ok(a)
 }
@@ -297,7 +297,7 @@ fn mk_spec_ast(kind: Kind, params: Vec<String>, rec: usize, sentences: Vec<(Stri
 fn mk_spec(kind: Kind, params: &[&str], rec: usize, sents: &[&str]) -> Result<Spec, String> {
     let params: Vec<String> = params.iter().map(|s| s.to_string()).collect();
     let mut sentences = Vec::new();
-    for s in sents { sentences.push((s.to_string(), parse_formula(s)?)); }
+    for s in sents { sentences.push((s.to_string(), parse_formula(s, "T")?)); }
     Ok(mk_spec_ast(kind, params, rec, sentences))
 }
 
@@ -327,7 +327,7 @@ impl Spec {
     /// `init` is the right-hand side at `recname = 0` and `step` the right-hand side at
     /// `recname + 1`.  Refuses anything the uniqueness argument in the module header
     /// does not cover.
-    pub fn custom(params: Vec<String>, recname: &str, init_src: &str, step_src: &str)
+    pub fn custom(params: Vec<String>, recname: &str, init_src: &str, step_src: &str, word: &str)
         -> Result<Spec, String> {
         if params.len() < 1 { return Err("need at least one parameter".into()); }
         if params.len() > 4 { return Err("at most 4 parameters (k^n alphabet)".into()); }
@@ -337,8 +337,8 @@ impl Spec {
             let mut seen = params.clone(); seen.sort(); seen.dedup();
             if seen.len() != params.len() { return Err("duplicate parameter name".into()); }
         }
-        let init = parse_formula(init_src)?;
-        let step = parse_formula(step_src)?;
+        let init = parse_formula(init_src, word)?;
+        let step = parse_formula(step_src, word)?;
         // Soundness side conditions (module header, "User-supplied").
         if has_quantifier(&init) || has_quantifier(&step) {
             return Err("quantifiers are not allowed in init:/step: -- the oracle unrolls \
@@ -1368,7 +1368,7 @@ pub fn cmd_learn(seq: &Dfao, defs: &Defs, rest: &str)
         let init = body[ip + 5..sp].trim();
         let step = body[sp + 5..].trim();
         if init.is_empty() || step.is_empty() { return Err("empty init: or step:".into()); }
-        Spec::custom(params, &recname, init, step)?
+        Spec::custom(params, &recname, init, step, &seq.name)?
     } else {
         let word = tail.split_whitespace().next().unwrap_or("");
         let kind = Kind::parse(word).ok_or_else(|| format!("unknown kind {:?}; {}", word, USAGE))?;

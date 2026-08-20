@@ -1,0 +1,26 @@
+# .github/workflows/ci.yml — build + integration tests for the peanut engine.
+# The crate stays on edition 2024 (see engine/Cargo.toml); we DO NOT downgrade it.
+# GH-hosted runners ship rustup, so we pin an explicit stable toolchain that
+# supports edition 2024 rather than relying on whatever "stable" floats to.
+# Pinned to 1.97.1 (the version the fixes were verified against, 2026-08); bump
+# deliberately, not implicitly.
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.97.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: engine
+      - name: build
+        run: cargo build --release --manifest-path engine/Cargo.toml
+      - name: integration tests (engine/tests/cli.rs)
+        run: cargo test --release --manifest-path engine/Cargo.toml
+      # Opt into these once the tree is clean for them; don't gate on them blind:
+      # - run: cargo fmt --check --manifest-path engine/Cargo.toml
+      # - run: cargo clippy --release --manifest-path engine/Cargo.toml -- -D warnings

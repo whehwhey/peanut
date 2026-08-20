@@ -578,6 +578,12 @@ kind={} eqs={} ces={} mqs={}", name, params.join(","), a2.nstates, dfa::peak_get
                 let Some(d) = &cur else { println!("ERR no sequence"); continue };
                 match logic::compile_str(d.k, d, &defs, rest) {
                     Ok(a) => {
+                        // A value has infinitely many padded representations, so
+                        // the raw automaton always carries the padding cycle.
+                        // Analyse the canonical (pad-quotient) language instead,
+                        // which has exactly one word per value under the active
+                        // numeration system (base-k or numsys).
+                        let a = a.pad_quotient().minimize();
                         let n = a.nstates;
                         // states that can reach an accepting state
                         let mut useful = a.accept.clone();

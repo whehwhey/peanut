@@ -870,3 +870,74 @@ impl Dfa {
         }
     }
 }
+
+impl Dfa {
+    /// Quotient away numeration padding for value-set analyses (`finite`).
+    ///
+    /// A value has infinitely many digit-word representations (msd: any number
+    /// of leading zeros; lsd: any number of trailing zeros), so the raw
+    /// compiled automaton always contains the padding cycle and the naive
+    /// start-to-accept cycle test reports INFINITE for every nonempty set.
+    ///
+    /// This returns an automaton whose language is the *canonical* words: for
+    /// msd, the empty-of-leading-zeros representations (plus the single word
+    /// "0" for the value 0); for lsd, the representations with no trailing
+    /// zeros (plus "0"). There is exactly one canonical word per value, so the
+    /// value set is finite iff this automaton's language is finite -- run the
+    /// cycle test and enumeration here, never on the raw automaton.
+    ///
+    /// When a numeration system is active we first conjoin its validity
+    /// language (numsys validity permits leading/trailing zeros, so it does not
+    /// by itself remove padding, but it removes *invalid* strings that could
+    /// otherwise contribute spurious value-preserving cycles). The padding
+    /// letter is digit 0 in every numeration system we support.
+    pub fn pad_quotient(&self) -> Dfa {
+        // Restrict to valid representations under the active numeration system
+        // (no-op in plain base-k). This guarantees the only value-preserving
+        // pumps left are the padding zeros the tracker below removes.
+        let base = crate::numsys::restrict(self);
+        let lsd = is_lsd();
+        let (n, al) = (base.nstates, base.alpha);
+        // tracker states:
+        //   0 = Start (nothing read)
+        //   1 = the single word "0" so far (represents value 0)
+        //   2 = Dead (msd: a leading zero was followed by more input)
+        //           / TrailRun (lsd: currently inside a trailing-zero run)
+        //   3 = Body (msd: started with a nonzero digit)
+        //           / (lsd) the last digit read was nonzero
+        let step = |m: usize, zero: bool| -> usize {
+            if lsd {
+                match (m, zero) {
+                    (0, true) => 1, (0, false) => 3,
+                    (1, true) => 2, (1, false) => 3,
+                    (2, true) => 2, (2, false) => 3,
+                    (3, true) => 2, (3, false) => 3,
+                    _ => unreachable!(),
+                }
+            } else {
+                match (m, zero) {
+                    (0, true) => 1, (0, false) => 3,
+                    (1, _) => 2, (2, _) => 2,
+                    (3, _) => 3,
+                    _ => unreachable!(),
+                }
+            }
+        };
+        let idx = |q: usize, m: usize| q * 4 + m;
+        let mut trans = vec![0 as State; n * 4 * al];
+        let mut accept = vec![false; n * 4];
+        for q in 0..n {
+            for m in 0..4 {
+                for a in 0..al {
+                    // in a single value track the symbol IS the digit; padding
+                    // is digit 0 for every numeration system.
+                    let zero = a == 0;
+                    trans[idx(q, m) * al + a] = idx(base.t(q, a), step(m, zero)) as State;
+                }
+                // accept the single "0" word (m==1) or a no-padding word (m==3)
+                accept[idx(q, m)] = (m == 1 || m == 3) && base.accept[q];
+            }
+        }
+        Dfa { k: base.k, vars: base.vars.clone(), alpha: al, nstates: n * 4, trans, accept }
+    }
+}

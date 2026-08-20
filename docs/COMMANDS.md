@@ -78,6 +78,21 @@ predicate is a base-`k` notion):
 ERR pow() is base-k only; no V_k predicate is defined for numeration system "fib" ...
 ```
 
+**Known gap — arithmetic-only queries still need a current sequence.** `?`,
+`witness`, `enum` and `finite` all require a current sequence (`ERR no sequence`)
+even when the formula names no sequence term, so a purely arithmetic fact under a
+numeration system errors:
+
+```
+> numsys fib
+> ? A x,y. x+y=y+x
+ERR no sequence
+```
+
+Workaround: define any throwaway sequence first (`dfao D 2 0:0,1 1:0,-`) — it is
+never referenced, so it does not affect the verdict. A future release should let
+sequence-free formulas compile without a DFAO.
+
 Failure: `ERR numsys no validity automaton for "xyz" (looked for ...)`;
 `ERR numsys <file>: <parse error>`.
 
@@ -243,9 +258,16 @@ specifically the assignment decoded from the **shortest** accepted word (BFS fro
 the start state), or `NONE` if the language is empty. A closed formula degenerates
 to `TRUE`/`FALSE`.
 
+A closed formula reports `TRUE`/`FALSE`, not a witness tuple: witnesses are the
+assignment to the *free* variables, so quantify nothing you want reported. To get
+a position back, leave the index free (`witness T[i]=1`), do not bind it
+(`witness E i. T[i]=1` is closed and prints `TRUE`).
+
 ```
+> witness T[i]=1
+WITNESS i=1 states=2 len=1 ms=0 :: T[i]=1
 > witness E i. T[i]=1
-WITNESS i=1 states=3 len=1 ms=0 :: E i. T[i]=1
+TRUE states=1 ms=0 :: E i. T[i]=1
 > witness A i. T[i]=2
 FALSE states=1 ms=0 :: A i. T[i]=2
 ```
@@ -362,7 +384,7 @@ A closed formula (0 free variables) prints `CLOSED TRUE`/`CLOSED FALSE` instead.
 
 ```
 > enum 8 T[i]=1
-ENUM vars=[i] n=4 1,2,4,7
+ENUM vars=[i] n=4 1 2 4 7
 ```
 
 ### `dfa formula`
@@ -382,16 +404,22 @@ DFA vars=[i] states=3 (msd base 2, padding allowed)
 
 ### `finite formula`
 
-For a one-free-variable formula, decides whether the accepted set is finite by
-graph analysis (no cycle on any start-to-accept path among "useful" states — those
-that can reach acceptance). Prints `EMPTY`, `INFINITE states=N`, or
-`FINITE size=S max=M states=N` (`M` from `Dfa::enumerate(200000, 40)` over the
+For a one-free-variable formula, decides whether the set of **values** is finite.
+The analysis runs on the *pad quotient* (`Dfa::pad_quotient`), not the raw
+compiled automaton: a value has infinitely many padded representations (leading
+zeros in msd, trailing zeros in lsd, plus any numeration-system validity slack),
+so the raw automaton always contains the padding cycle and a naive cycle test
+would report `INFINITE` for every nonempty set. The quotient keeps exactly one
+canonical word per value — under the active numeration system as well as base-k —
+after which finiteness is "no cycle on any start-to-accept path among useful
+states (those that can reach acceptance)". Prints `EMPTY`, `INFINITE states=N`,
+or `FINITE size=S max=M states=N` (`M` from `Dfa::enumerate(200000, 40)` over the
 finite set — the intended use is proving statements like "P(n) <= c only finitely
 often" by exhibiting the largest exception).
 
 ```
 > finite T[i]=1 & i<10
-FINITE size=4 max=9 states=3 :: T[i]=1 & i<10
+FINITE size=5 max=8 states=7 :: T[i]=1 & i<10
 ```
 
 ### `mem`
@@ -621,12 +649,12 @@ OK def T k=2 states=2 lsd_states=2 mode=msd
 SEQ n=16 k=2 0110100110010110
 OK let EQ(i,j) states=3 ms=0
 TRUE states=1 peak=3 ms=0 :: A i. $EQ(i,i)
-WITNESS i=1 j=2 states=... len=... ms=... :: E i,j. i!=j & $EQ(i,j)
+TRUE states=... ms=... :: E i,j. i!=j & $EQ(i,j)
 OK learnfe FE(i,j,l) states=15 iters=1 eqs=1 ces=14 mqs=42502 steps=... peak=0 ms=34
 TRUE states=... peak=... ms=... :: A i,j. $FE(i,j,0)
 FEMAP i0=0 j0=0 size=4 l=3 ms=0 rows=1000,0100,0010,0001
 EXPORT {"kind":"dfa","name":"FE","k":2,"mode":"msd","vars":["i","j","l"],"params":["i","j","l"],...}
-ENUM vars=[i] n=4 1,2,4,7
-FINITE size=4 max=9 states=3 :: T[i]=1 & i<10
+ENUM vars=[i] n=5 1 2 4 7 8
+FINITE size=5 max=8 states=7 :: T[i]=1 & i<10
 OK mem live=..MB peak=..MB
 ```
