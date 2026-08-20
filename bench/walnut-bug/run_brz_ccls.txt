@@ -1,0 +1,5 @@
+morphism prism1 "0->0305 1->4555 2->2321 3->0514 4->1023 5->4300";
+promote PRISM1P prism1;
+morphism prism1cod "0->1 1->0 2->2 3->2 4->0 5->2";
+image T prism1cod PRISM1P;
+[strategy * BRZ-CCLS]def prismfe_brz_ccls "?msd_4 At (t<l) => T[i+t]=T[j+t]"::

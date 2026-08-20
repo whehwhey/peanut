@@ -4,24 +4,13 @@ Generated 2026-08-20 08:22 by `explore/rig_bench_table.py` from `results/rig/ben
 
 Question from `bench/STRATEGY-RESULTS.md` and `bench/SPEED-ROUND6.md`: those rounds compared Peanut and Walnut 8-dev at 6 GB and 15 to 30 min on an 18-core Mac. This round reruns the equality-of-factors panel hard cases and four Tribonacci queries on the peanut-rig (i9-14900, 32 threads, 64 GB, Windows) at `AM_MEM_MB=32768` and `java -Xmx32g` on both sides, 1800 s ceiling, one process at a time (the FE ensemble sweep ran concurrently throughout; the harness never launches a second engine or JVM while one is live). `let FE(i,j,l) A t. t < l => T[i+t] = T[j+t]` on the panel; the four Tribonacci queries are cube-exists, 4th-power-exists, palindrome-of-every-length, and FE direct.
 
-## Correctness note: the Walnut BRZ disagreement
+## Correctness note: cross-checking Walnut against Peanut
 
-Walnut reports one fewer state than Peanut on these queries because it does not count the dead state. Any Walnut integer count that is not exactly Peanut minus one is therefore suspect and is flagged here.
+For a predicate with free variables (the equality-of-factors panel: `prism-1`, `single*`, `tail-*`), Walnut reports exactly one fewer state than Peanut because it does not count the dead state, so a completed Walnut count should equal Peanut's minus one. For a closed sentence (the Tribonacci cube / 4th-power / palindrome queries) the meaningful output is the TRUE/FALSE verdict, not the intermediate automaton size, so verdicts are what we compare there.
 
-| case | Walnut strategy | Walnut states | expected (Peanut - 1) | Peanut states |
-|------|-----------------|--------------:|----------------------:|--------------:|
-| prism-1 | BRZ | 1058 | 466 | 467 |
-| trib:cube exists | BRZ | 9 | 0 | 1 |
-| trib:cube exists | CCL | 9 | 0 | 1 |
-| trib:cube exists | BRZ-CCL | 9 | 0 | 1 |
-| trib:cube exists | BRZ-CCLS | 9 | 0 | 1 |
-| trib:4th power exists | BRZ | 1 | 0 | 1 |
-| trib:4th power exists | CCL | 1 | 0 | 1 |
-| trib:4th power exists | BRZ-CCL | 1 | 0 | 1 |
-| trib:4th power exists | BRZ-CCLS | 1 | 0 | 1 |
-| trib:palindrome of every length | BRZ | 1 | 0 | 1 |
+Every Walnut strategy that runs to completion agrees with Peanut on this data: each completing predicate count equals Peanut minus one (all completing strategies return 466 on `prism-1`, matching Peanut's 467), and each closed sentence returns the same verdict. There are no state-count or verdict disagreements.
 
-The `prism-1` / `BRZ` cell is the known one: it reports 1058 where `CCLS` on the same rig jar gives 466 (the correct minimal count, Peanut's 467 minus the dead state), reproduced at 466 on the Mac's cached jar too. This is a Walnut-repo `BRZ`-strategy issue on the rig's fresh HEAD build, not a Peanut one. Do not use a flagged Walnut cell without a cross-check against another strategy on the same case.
+Retraction: earlier revisions of this file reported a `prism-1` / `BRZ` = 1058 cell as a suspected Walnut bug. That was wrong. The 1058 was an intermediate NFA size captured from a BRZ run that was killed early -- the JVM was terminated under concurrent memory pressure before the query finished -- which our benchmark harness misread as a final count. BRZ on `prism-1` needs about 2422 s to complete, longer than this benchmark's 1800 s ceiling, so it is a *timeout* in this window; run to completion it returns 466, in exact agreement with `CCLS`, `BRZ-CCL`, `BRZ-CCLS` and Peanut (467 = 466 + dead state), and 466 is confirmed minimal independently. There is no Walnut bug. Full write-up: `bench/walnut-bug/ISSUE.md`.
 
 ## Head-to-head, 32 GB, per case
 
@@ -58,11 +47,11 @@ for this shape and is what a user now gets without asking.
 
 ## Walnut, all six strategies, 32 GB
 
-Seconds per strategy; `to` = 1800 s timeout, `-` = not run yet. A flagged cell (see the correctness note) is marked `*`.
+Seconds per strategy; `to` = 1800 s timeout or incomplete run, `-` = not run yet. A cell that disagrees with the Peanut cross-check (see the correctness note) is marked `*`; none do in this data.
 
 | case | SC | BRZ | CCL | CCLS | BRZ-CCL | BRZ-CCLS |
 |------|---:|---:|---:|---:|---:|---:|
-| prism-1 | to | 401* | to | 308 | 796 | 1014 |
+| prism-1 | to | to | to | 308 | 796 | 1014 |
 | single3 | to | 1 | 6 | 1 | 1 | 1 |
 | single4 | to | 16 | to | 14 | 10 | 10 |
 | single5 | to | 256 | to | 266 | 162 | 152 |
@@ -70,9 +59,9 @@ Seconds per strategy; `to` = 1800 s timeout, `-` = not run yet. A flagged cell (
 | tail-a | to | to | to | 196 | to | to |
 | tail-b | to | to | to | 472 | to | to |
 | tail-c | to | to | to | 28 | to | to |
-| trib:cube exists | to | 554* | 1006* | to | 486* | 460* |
-| trib:4th power exists | to | 773* | 1393* | to | 493* | 409* |
-| trib:palindrome of every length | to | 292* | - | - | - | - |
+| trib:cube exists | to | 554 | 1006 | to | 486 | 460 |
+| trib:4th power exists | to | 773 | 1393 | to | 493 | 409 |
+| trib:palindrome of every length | to | 292 | - | - | - | - |
 | trib:FE(i,j,l) [direct] | - | - | - | - | - | - |
 
 ## Peanut, default vs AM_SIMSUB=1, 32 GB

@@ -75,11 +75,16 @@ counts and near-identical peak MB at 6 GB and 32 GB).
 
 Two caveats carried over intact from that file:
 
-- **Walnut `BRZ`-strategy bug flag.** On the rig's fresh Walnut HEAD build, the `BRZ`
-  strategy reports wrong state counts on several cases (`prism-1` 1058 where `CCLS` gives
-  the correct 466; the Tribonacci cube/4th-power/palindrome cells). Any Walnut count that
-  is not exactly Peanut-minus-one is flagged in the file and must be cross-checked against
-  another strategy before use — this is a Walnut-repo issue, not a Peanut one.
+- **Walnut/Peanut cross-check: no disagreements.** Every Walnut strategy that runs to
+  completion on the rig agrees with Peanut: on the equality-of-factors panel a completed
+  Walnut count equals Peanut minus one (Walnut does not count the dead state — e.g. all
+  completing strategies return 466 on `prism-1`, matching Peanut's 467), and on the
+  closed Tribonacci sentences the TRUE/FALSE verdicts match. An earlier revision here
+  flagged a `prism-1` `BRZ` = 1058 cell as a suspected Walnut bug; that was a mistake in
+  our own benchmark harness, which misread an incomplete (killed-early) BRZ run's
+  intermediate NFA size as a final count. BRZ on `prism-1` is a *timeout* in the 1800 s
+  window and returns 466 when run to completion. There is no Walnut bug — see
+  `bench/walnut-bug/ISSUE.md`.
 - **tail-c honesty.** On the rig, tail-c is a Peanut win by default (~16 s auto-`learnfe`
   vs Walnut `CCLS` 28.5 s), the opposite of the 6 GB Mac row above. The winning path is
   the *learn* construction (proved language-equal to FE), not the direct determinization

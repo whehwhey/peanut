@@ -1,0 +1,28 @@
+# ---------------------------------------------------------------------------
+# Walnut repro for the SUSPECTED (and retracted) BRZ vs CCLS state-count
+# discrepancy. Run to completion, BRZ and CCLS BOTH return 466 -- they agree.
+# The suspected disagreement was a harness artifact, not a Walnut bug (ISSUE.md).
+# Sequence "prism-1": 4-uniform morphism DFAO, coding 102202, start state 0.
+# FE (equality-of-factors) predicate: At (t<l) => T[i+t] = T[j+t].
+#
+# The morphism, promotion and image below build the DFAO T exactly ONCE.
+# The four def lines are byte-for-byte identical except for the [strategy ...]
+# metacommand prefix and the result name, so any difference in the reported
+# state count is internal to Walnut's determinization/minimization.
+# ---------------------------------------------------------------------------
+
+morphism prism1 "0->0305 1->4555 2->2321 3->0514 4->1023 5->4300";
+
+promote PRISM1P prism1;
+
+morphism prism1cod "0->1 1->0 2->2 3->2 4->0 5->2";
+
+image T prism1cod PRISM1P;
+
+[strategy * SC]def prismfe_sc "?msd_4 At (t<l) => T[i+t]=T[j+t]"::
+
+[strategy * BRZ]def prismfe_brz "?msd_4 At (t<l) => T[i+t]=T[j+t]"::
+
+[strategy * CCLS]def prismfe_ccls "?msd_4 At (t<l) => T[i+t]=T[j+t]"::
+
+[strategy * BRZ-CCLS]def prismfe_brzccls "?msd_4 At (t<l) => T[i+t]=T[j+t]"::
