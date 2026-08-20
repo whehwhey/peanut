@@ -15,11 +15,33 @@ const el = (tag, cls, txt) => {
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const fmt = (n) => (n === undefined || n === null) ? '—' : n.toLocaleString('en-US');
 
+// EngineTransport: one interface, two back ends. The local Python server answers
+// /api/* over fetch; the GitHub Pages build has no server and answers the exact
+// same routes from the in-browser wasm engine (wasm-backend.js). boot() probes
+// which one is live and sets BACKEND.mode; every api()/post() below is unchanged
+// for callers -- the single most important design point of the wasm playground.
+const BACKEND = { mode: 'server' };
+
+async function detectBackend() {
+  // A live local server answers /api/health as JSON. On static hosting that is a
+  // 404 (or the fetch throws), so fall back to the in-browser wasm engine.
+  try {
+    const r = await fetch('/api/health', { cache: 'no-store' });
+    if (r.ok) { const j = await r.json(); if (j && j.ok) return 'server'; }
+  } catch (e) { /* no server here */ }
+  if (typeof WASM !== 'undefined' && await WASM.init()) return 'wasm';
+  return 'server';   // nothing worked; the normal error path will report it
+}
+
 async function api(path, opts) {
-  const r = await fetch(path, opts);
-  const t = await r.text();
   let j;
-  try { j = JSON.parse(t); } catch (e) { throw new Error(t.slice(0, 300)); }
+  if (BACKEND.mode === 'wasm') {
+    j = await WASM.route((opts && opts.method) || 'GET', path, opts && opts.body);
+  } else {
+    const r = await fetch(path, opts);
+    const t = await r.text();
+    try { j = JSON.parse(t); } catch (e) { throw new Error(t.slice(0, 300)); }
+  }
   if (j && j.error && !j.lines) throw new Error(j.error);
   return j;
 }
@@ -103,7 +125,7 @@ const S = {
 const MASCOT = { sprite: null };
 async function loadSprite() {
   try {
-    const txt = await (await fetch('/static/mascot-sprite.svg')).text();
+    const txt = await (await fetch('mascot-sprite.svg')).text();
     const holder = el('div');
     holder.style.display = 'none';
     holder.innerHTML = txt;
@@ -111,7 +133,7 @@ async function loadSprite() {
     MASCOT.sprite = true;
   } catch (e) { MASCOT.sprite = false; }
   try {
-    const logo = await (await fetch('/static/logo.svg')).text();
+    const logo = await (await fetch('logo.svg')).text();
     $('brandmark').innerHTML = logo;
     const svg = $('brandmark').querySelector('svg');
     if (svg) { svg.setAttribute('width', '34'); svg.setAttribute('height', '34'); }
@@ -1137,6 +1159,29 @@ const Live = {
     c.className = 'chip ' + (kind || 'done');
   },
 
+  // No SSE in the browser build: run to completion on the main thread (every
+  // library demo is sub-second serial) and fill the panel from the final result.
+  // The live phase bar and mid-run counters are a local-server feature.
+  async startWasm(body) {
+    $('liveState').textContent = 'running in your browser…';
+    Live.t0 = Date.now();
+    let j;
+    try { j = await post('/api/run', body); }
+    catch (e) {
+      Live.state = 'done'; Live.phases();
+      $('liveState').textContent = 'failed: ' + e.message;
+      Live.chip('FAILED', 'err'); $('cancelBtn').hidden = true; return;
+    }
+    j.secs = (Date.now() - Live.t0) / 1000;
+    Live.result = j;
+    (j.lines || []).forEach(l => Live.log('\u203a ' + l.raw));
+    const states = (j.lines || []).map(l => l.states).filter(x => x != null).pop();
+    const peak = (j.lines || []).map(l => l.peak).filter(x => x != null).pop();
+    if (states != null) $('cnt-states').textContent = fmt(states);
+    if (peak != null) $('cnt-peak').textContent = fmt(peak);
+    Live.finish();
+  },
+
   async start(body) {
     if (Live.job) Live.cancel();
     Live.reset(body.mem_mb || 1536);
@@ -1144,6 +1189,7 @@ const Live = {
     setMascot('thinking');
     $('liveState').textContent = 'starting';
     $('cancelBtn').disabled = false;
+    if (BACKEND.mode === 'wasm') return Live.startWasm(body);
     let j;
     try { j = await post('/api/job', body); }
     catch (e) {
@@ -2085,9 +2131,12 @@ async function boot() {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); runScript(false); }
   });
 
+  BACKEND.mode = await detectBackend();
   try {
     const h = await api('/api/health');
-    $('healthPill').textContent = `${h.free_mb.toLocaleString()} MB free`;
+    $('healthPill').textContent = BACKEND.mode === 'wasm'
+      ? `in-browser · ${h.mem_mb} MB budget`
+      : `${h.free_mb.toLocaleString()} MB free`;
     $('footEngine').textContent = h.engine;
   } catch (e) { $('healthPill').textContent = 'engine unreachable'; }
 
@@ -2135,7 +2184,7 @@ window.PEANUT = { S, Tape, Auto, Heat, Live, Morph, Shapes, Pic, Turtle, Square,
 boot().then(() => {
   if (location.search.includes('selftest')) {
     const t = document.createElement('script');
-    t.src = '/static/selftest.js';
+    t.src = 'selftest.js';
     document.body.appendChild(t);
   }
 });

@@ -320,8 +320,11 @@ fn or_succ(buf: &mut [u64], succ: &[u32]) {
 /// Identical output to `dfa::Nfa::determinize_capped` on the equivalent NFA:
 /// same state numbering, same transition table, same accept vector.
 pub fn determinize_capped(nfa: &FlatNfa, cap: usize) -> Option<Dfa> {
-    let threads = par_threads();
-    if threads > 1 { return determinize_par(nfa, cap, threads); }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let threads = par_threads();
+        if threads > 1 { return determinize_par(nfa, cap, threads); }
+    }
     let alpha = nfa.alpha;
     let words = (nfa.nstates + 63) / 64;
     let mut it = Interner::new(words, 4096);
@@ -401,6 +404,7 @@ fn finish(nfa: &FlatNfa, it: Interner, trans: Vec<u32>) -> Dfa {
 /// order the serial construction would have visited them**.  That keeps the
 /// state numbering, and therefore the whole output DFA, identical to the
 /// serial path no matter how many threads run.
+#[cfg(not(target_arch = "wasm32"))]
 fn determinize_par(nfa: &FlatNfa, cap: usize, threads: usize) -> Option<Dfa> {
     let alpha = nfa.alpha;
     let words = (nfa.nstates + 63) / 64;
@@ -480,6 +484,7 @@ fn determinize_par(nfa: &FlatNfa, cap: usize, threads: usize) -> Option<Dfa> {
     Some(finish(nfa, it, trans))
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn pool(threads: usize) -> &'static rayon::ThreadPool {
     static P: OnceLock<rayon::ThreadPool> = OnceLock::new();
     P.get_or_init(|| rayon::ThreadPoolBuilder::new().num_threads(threads).build().unwrap())

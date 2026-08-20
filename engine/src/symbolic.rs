@@ -230,7 +230,7 @@ pub fn exists(d: &Dfa, var: &str) -> Option<Dfa> {
     }
     let cap = envn("AM_BDD_CAP", cap0);
     let dbg = std::env::var("AM_BDD_DEBUG").is_ok();
-    let t0 = std::time::Instant::now();
+    let t0 = crate::clock::Instant::now();
     crate::progress::phase("symbolic", &d.vars[pos]);
     let r = Ctx::run(d, pos, cap, envn("AM_BDD_NODES", 30_000_000));
     if dbg {

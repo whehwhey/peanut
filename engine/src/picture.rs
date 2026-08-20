@@ -18,7 +18,7 @@
 use crate::dfa;
 use crate::dfao::Dfao;
 use crate::logic::Defs;
-use std::time::Instant;
+use crate::clock::Instant;
 
 /// Hard cap on the number of cells one `pic` may evaluate.
 pub const MAX_CELLS: u64 = 1 << 20;

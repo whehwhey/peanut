@@ -9,11 +9,27 @@ edition = "2024"
 name = "peanut"
 path = "src/main.rs"
 
+# The engine is also a library so the exact same command REPL can be driven from
+# the CLI (stdin/stdout) and from the wasm playground (in-memory buffers).
+# cdylib is what wasm-bindgen links; rlib lets the bin and tests link it too.
+[lib]
+name = "peanut"
+path = "src/lib.rs"
+crate-type = ["rlib", "cdylib"]
+doctest = false
+
 [dependencies]
+
 # Builder A: frontier-parallel subset construction (engine/src/det_par.rs).
 # Only reachable with AM_PAR=<threads>; the default single-threaded path never
-# enters a rayon pool.
+# enters a rayon pool.  Threads do not exist on wasm32-unknown-unknown, so rayon
+# is a native-only dependency and its call sites are gated out under wasm.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rayon = "1"
+
+# The browser playground exposes run(script) via wasm-bindgen.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "=0.2.100"
 
 [profile.release]
 opt-level = 3

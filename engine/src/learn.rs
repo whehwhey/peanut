@@ -110,7 +110,7 @@ use crate::dfao::Dfao;
 use crate::numsys::{self, NumSys};
 use crate::logic::{self, Ast, Compiler, Defs, Lin};
 use std::collections::HashMap;
-use std::time::Instant;
+use crate::clock::Instant;
 
 /// Name the hypothesis is registered under while the recurrence is being checked.
 /// User templates write `$H`; it is renamed to this so that a user `let H` cannot be

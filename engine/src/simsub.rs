@@ -4,7 +4,17 @@
 //! ## Credit
 //!
 //! The idea that a subset may be pruned to its simulation-maximal states is not
-//! ours.  It is the "antichain" line of work:
+//! ours. The primary reference for the reduce-while-determinizing technique this
+//! module implements is:
+//!
+//! * John Nicol, Markus Frohme, *Deconstructing Subset Construction -- Reducing
+//!   While Determinizing*, TACAS 2026, LNCS 16506, Springer, doi:
+//!   10.1007/978-3-032-22749-2_20 -- equivalence registries that feed
+//!   minimization insight back into the subset construction on the fly; this is
+//!   the `CCLS` ("Convexity Closure Lattice with Simulation") technique this
+//!   module reimplements.
+//!
+//! It builds on the earlier "antichain" line of work:
 //!
 //! * M. De Wulf, L. Doyen, T. A. Henzinger, J.-F. Raskin, *Antichains: a new
 //!   algorithm for checking universality of finite automata*, CAV 2006 -- subset
@@ -13,13 +23,13 @@
 //!   meets antichains (on checking language inclusion of nondeterministic finite
 //!   (tree) automata)*, TACAS 2010 -- refining that order by a forward simulation
 //!   preorder, which is exactly the reduction implemented here.
-//! * John Nicol's on-the-fly determinization library
-//!   (<https://github.com/jn1z/OTF>), shipped in Walnut 7.0+ as the `CCLS` and
-//!   `BRZ-CCLS` strategies ("Convexity Closure Lattice **with** simulation").
-//!   `bench/WALNUT-STRATEGIES.md` records that `CCLS` answers the `tail-c` `FE`
-//!   query in 10.6 s where Peanut's direct construction needs 191 s; that gap is
-//!   what this module exists to close, and the technique is Nicol's, used here
-//!   with attribution.
+//!
+//! Nicol's on-the-fly determinization library (<https://github.com/jn1z/OTF>)
+//! implements the technique and ships in Walnut 7.0+ as the `CCLS` and
+//! `BRZ-CCLS` strategies. `bench/WALNUT-STRATEGIES.md` records that `CCLS`
+//! answers the `tail-c` `FE` query in 10.6 s where Peanut's direct construction
+//! needs 191 s; that gap is what this module exists to close, and the technique
+//! is Nicol and Frohme's, used here with attribution.
 //!
 //! ## What it does
 //!
@@ -481,7 +491,7 @@ fn determinize_sim(nfa: &FlatNfa, dr: &Prune, cap: usize) -> Option<Dfa> {
 /// gain and a per-subset cost to pay).  `None` = cap or simulation budget blown.
 fn det_stage(n: &FlatNfa, cap: usize, tag: &str) -> Option<Dfa> {
     let dbg = dbg_on();
-    let t0 = std::time::Instant::now();
+    let t0 = crate::clock::Instant::now();
     // The simulation is a |Q|^2 bit matrix and a |Q|^2-pair fixpoint: above the
     // ceiling it costs more than the construction it is meant to save (Walnut's
     // own help text says the same about CCLS above ~50 000 NFA states).

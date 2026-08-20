@@ -24,6 +24,12 @@ pub fn init() {
     LIMIT.store(mb.saturating_mul(1 << 20).max(1), Ordering::Relaxed);
 }
 
+/// Set the budget directly, in megabytes. The wasm playground calls this via the
+/// `set_budget` binding since it has no environment to read `AM_MEM_MB` from.
+pub fn set_limit_mb(mb: usize) {
+    LIMIT.store(mb.saturating_mul(1 << 20).max(1), Ordering::Relaxed);
+}
+
 #[inline]
 fn limit() -> usize {
     let l = LIMIT.load(Ordering::Relaxed);
@@ -42,7 +48,12 @@ fn charge(n: usize) {
         // TRIPPED is set, so allocations made while reporting pass straight through.
         eprintln!("ERR memory budget exceeded: {} MB live > AM_MEM_MB={} MB", now >> 20, limit() >> 20);
         println!("ERR memory budget exceeded ({} MB)", now >> 20);
+        // Native: exit(3), the status explore/engine.py maps to "budget". Wasm has
+        // no process to exit -- trap the instance instead; the worker reports it.
+        #[cfg(not(target_arch = "wasm32"))]
         std::process::exit(3);
+        #[cfg(target_arch = "wasm32")]
+        std::process::abort();
     }
 }
 

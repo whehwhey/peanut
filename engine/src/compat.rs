@@ -34,7 +34,7 @@ use crate::numsys::{self, NumSys};
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Instant;
+use crate::clock::Instant;
 
 // ------------------------------------------------------------------ number systems
 

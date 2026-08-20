@@ -17,7 +17,7 @@
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
-use std::time::Instant;
+use crate::clock::Instant;
 
 static ON: AtomicBool = AtomicBool::new(false);
 static START: OnceLock<Instant> = OnceLock::new();
