@@ -4,8 +4,8 @@ title: "Peanut: a decision procedure for automatic sequences"
 authors:
   - family-names: Hingston
     given-names: Andrew
-repository-code: "https://github.com/whehwhey/peanut"
-url: "https://github.com/whehwhey/peanut"
+repository-code: "https://github.com/hingstona/peanut"
+url: "https://github.com/hingstona/peanut"
 abstract: >-
   Peanut is a first-order decision procedure for automatic sequences (a
   Walnut-style prover written in Rust), with a parallel determinization core,

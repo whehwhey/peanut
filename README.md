@@ -99,7 +99,7 @@ Andrew Hingston.
 
 If you use Peanut in research, please cite it (GitHub shows a "Cite this repository" button from `CITATION.cff`). A DOI will be added once the software paper is published.
 
-> Hingston, A. *Peanut: a decision procedure for automatic sequences.* 2026. https://github.com/whehwhey/peanut
+> Hingston, A. *Peanut: a decision procedure for automatic sequences.* 2026. https://github.com/hingstona/peanut
 
 ## License
 
