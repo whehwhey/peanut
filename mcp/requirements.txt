@@ -1,0 +1,5 @@
+# Peanut MCP server dependencies.
+# The server imports whichever high-level class the installed SDK exposes
+# (FastMCP on 1.x, MCPServer on 2.x), so any recent official SDK works.
+mcp>=1.2
+psutil>=5.9
