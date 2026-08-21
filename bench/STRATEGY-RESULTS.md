@@ -1,4 +1,4 @@
-# Walnut strategies vs Peanut — the corrected comparison (2026-08-18)
+# Walnut strategies vs Peanut: the corrected comparison (2026-08-18)
 
 > **Peanut's column is pre-2026-08-19 defaults.** The Walnut columns are unchanged and
 > still current; Peanut's defaults changed on 2026-08-19 (parallel determinization on,
@@ -33,7 +33,7 @@ Syntax and details: bench/WALNUT-STRATEGIES.md. Raw rows: bench/walnut_strategie
 
 ## Fair reading
 
-With the right strategy chosen per query, **Walnut 8-dev answers every case in this table** —
+With the right strategy chosen per query, **Walnut 8-dev answers every case in this table**:
 the "Walnut OOMs where Peanut answers" claim in our first benchmark was an artefact of running
 Walnut's default strategy only, and is withdrawn. What remains true:
 
@@ -42,7 +42,7 @@ Walnut's default strategy only, and is withdrawn. What remains true:
    singleton family and Tribonacci but OOM on the tail. Walnut's own help says "you may need to
    try them all". Peanut's one default (small forward cap -> Brzozowski -> escalate) finished
    seven of the eight without a per-query choice; the eighth (tail-c) needed `learnfe`. That is
-   a defaults/ergonomics difference, not an algorithmic one — the algorithms are the same
+   a defaults/ergonomics difference, not an algorithmic one; the algorithms are the same
    family, and Walnut had them first.
 2. **Speed against Walnut's best strategy is split on the base-k panel**: Peanut faster on
    prism-1, single4, single5, single6 (2-40x); Walnut's best faster on single3 (0.4 s vs 1.5 s),

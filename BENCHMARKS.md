@@ -1,4 +1,4 @@
-# Benchmarks — Peanut vs Walnut 8-dev
+# Benchmarks: Peanut vs Walnut 8-dev
 
 ## Current defaults (2026-08-19)
 
@@ -31,27 +31,28 @@ finishes it in 191 s / 2818 MB, at the same 1382 states the learner reports.
 **tail-c is now automatic.** Since the `AM_AUTOLEARN` change (default on), an ordinary
 `let FE(i,j,l) A t. t<l => T[i+t]=T[j+t]` detects the equality-of-factors shape and, when
 the ladder cannot build it cheaply, hands off to the `learnfe` guess-and-verify path by
-itself — the user no longer has to know the `learnfe` command to get the 16 s answer
+itself. The user no longer has to know the `learnfe` command to get the 16 s answer
 (`docs/LEARNFE.md` §10). `AM_AUTOLEARN=0` forces the direct ladder (191 s here, and no
 answer at all under the default 2048 MB budget).
 
 **Where Walnut is still faster on this machine: tail-c.** On this 6 GB Mac measurement
 Walnut's CCLS answers it in 10.6 s vs Peanut's 16.10 s (1.5x), the only row Peanut does
-not win here. On the 32 GB rig the ranking flips — Walnut CCLS is 28.5 s there against the
-same ~16 s learn path — so tail-c is a Peanut win by default on the rig; see the
+not win here. On the test machine at the 32 GB budget, the ranking flips: Walnut CCLS is
+28.5 s there against the same ~16 s learn path, so tail-c is a Peanut win by default on
+the test machine; see the
 `bench/RIG-BENCH-32GB.md` cross-check below. Both are true and both are reported; the honest
 note stays that the winning path is the *learn* construction (learned, then proved
 language-equal to FE), not direct determinization.
 
 Everything else in the table Peanut now answers faster than the best Walnut strategy
-for that case — 4.6x on tail-a, 8.4x on tail-b, 33x on prism-1, 540x on single6, 178x
+for that case: 4.6x on tail-a, 8.4x on tail-b, 33x on prism-1, 540x on single6, 178x
 on Tribonacci FE by the ladder and 756x by the learner. Read that with the two caveats
 below intact: **Walnut answers every one of these cases too** once the right
 `[strategy]` is chosen per query (John Nicol's correction, which the section below
 records in full), and `learnfe` is a reimplementation of Mazen Khodier's self-verifying
 predicates, which Walnut 8 is adopting. The difference this table measures is mostly
-one of defaults — Peanut picks a construction per subproblem and needs no per-query
-tuning — not of algorithms.
+one of defaults (Peanut picks a construction per subproblem and needs no per-query
+tuning), not of algorithms.
 
 State counts still agree with Walnut's to the dead state on every row where both
 finish, which is the correctness cross-check behind all of the above.
@@ -62,13 +63,13 @@ finish, which is the correctness cross-check behind all of the above.
 
 The head-to-head above is a 6 GB Mac. To rule out "Peanut only wins because Walnut ran
 out of memory", the full equality-of-factors panel and four Tribonacci queries were rerun
-on the peanut-rig (i9-14900, 64 GB) at `AM_MEM_MB=32768` and `java -Xmx32g` on both sides,
+on the test machine (i9-14900, 64 GB) at `AM_MEM_MB=32768` and `java -Xmx32g` on both sides,
 one process at a time. The complete per-case and per-strategy tables, with every
 measurement, are in **[`bench/RIG-BENCH-32GB.md`](bench/RIG-BENCH-32GB.md)**.
 
 Reading, in one line: **more RAM does not change who wins.** Walnut's `SC`/`CCL` turn
-their 6 GB OOMs into 1800 s timeouts rather than answers, and its `CCLS`/`BRZ-CCLS` — the
-strategies that do answer — are, if anything, *slower* on the rig than on the Mac (the
+their 6 GB OOMs into 1800 s timeouts rather than answers, and its `CCLS`/`BRZ-CCLS`
+(the strategies that do answer) are, if anything, *slower* on the test machine than on the Mac (the
 i9's weaker single-thread clock), so the extra memory buys no Walnut win on any case
 Peanut also answers. Peanut's own numbers are memory-ceiling-independent (identical state
 counts and near-identical peak MB at 6 GB and 32 GB).
@@ -76,19 +77,19 @@ counts and near-identical peak MB at 6 GB and 32 GB).
 Two caveats carried over intact from that file:
 
 - **Walnut/Peanut cross-check: no disagreements.** Every Walnut strategy that runs to
-  completion on the rig agrees with Peanut: on the equality-of-factors panel a completed
-  Walnut count equals Peanut minus one (Walnut does not count the dead state — e.g. all
+  completion on the test machine agrees with Peanut: on the equality-of-factors panel a completed
+  Walnut count equals Peanut minus one (Walnut does not count the dead state, e.g. all
   completing strategies return 466 on `prism-1`, matching Peanut's 467), and on the
   closed Tribonacci sentences the TRUE/FALSE verdicts match. An earlier revision here
   flagged a `prism-1` `BRZ` = 1058 cell as a suspected Walnut bug; that was a mistake in
   our own benchmark harness, which misread an incomplete (killed-early) BRZ run's
   intermediate NFA size as a final count. BRZ on `prism-1` is a *timeout* in the 1800 s
-  window and returns 466 when run to completion. There is no Walnut bug — see
+  window and returns 466 when run to completion. There is no Walnut bug. See
   `bench/walnut-bug/ISSUE.md`.
-- **tail-c honesty.** On the rig, tail-c is a Peanut win by default (~16 s auto-`learnfe`
+- **tail-c honesty.** On the test machine, tail-c is a Peanut win by default (~16 s auto-`learnfe`
   vs Walnut `CCLS` 28.5 s), the opposite of the 6 GB Mac row above. The winning path is
   the *learn* construction (proved language-equal to FE), not the direct determinization
-  (447 s / 2818 MB on the rig, and no answer under the default budget).
+  (447 s / 2818 MB on the test machine, and no answer under the default budget).
 
 ---
 
@@ -123,7 +124,7 @@ Syntax and details: bench/WALNUT-STRATEGIES.md. Raw rows: bench/walnut_strategie
 
 ## Fair reading
 
-With the right strategy chosen per query, **Walnut 8-dev answers every case in this table** —
+With the right strategy chosen per query, **Walnut 8-dev answers every case in this table**:
 the "Walnut OOMs where Peanut answers" claim in our first benchmark was an artefact of running
 Walnut's default strategy only, and is withdrawn. What remains true:
 
@@ -132,7 +133,7 @@ Walnut's default strategy only, and is withdrawn. What remains true:
    singleton family and Tribonacci but OOM on the tail. Walnut's own help says "you may need to
    try them all". Peanut's one default (small forward cap -> Brzozowski -> escalate) finished
    seven of the eight without a per-query choice; the eighth (tail-c) needed `learnfe`. That is
-   a defaults/ergonomics difference, not an algorithmic one — the algorithms are the same
+   a defaults/ergonomics difference, not an algorithmic one; the algorithms are the same
    family, and Walnut had them first.
 2. **Speed against Walnut's best strategy is split on the base-k panel**: Peanut faster on
    prism-1, single4, single5, single6 (2-40x); Walnut's best faster on single3 (0.4 s vs 1.5 s),
@@ -154,7 +155,7 @@ for the correction.
 # Appendix: the original default-strategy tables (superseded by the section above)
 
 
-Reproducible with `bench/walnut_fe.py` (FE panel) and the numeration harness described in docs/NUMERATION.md. Both tools at 6 GB, same machine (Apple Silicon, 26 GB). Peanut counts the dead state, so Peanut = Walnut + 1 whenever both finish — an independent cross-check of every state count.
+Reproducible with `bench/walnut_fe.py` (FE panel) and the numeration harness described in docs/NUMERATION.md. Both tools at 6 GB, same machine (Apple Silicon, 26 GB). Peanut counts the dead state, so Peanut = Walnut + 1 whenever both finish: an independent cross-check of every state count.
 
 ## Equality of factors, base k
 
@@ -179,18 +180,18 @@ Reproducible with `bench/walnut_fe.py` (FE panel) and the numeration harness des
     tail-b (k=3,m=5)        1000  168   |    OOM      119
     tail-c (k=2,m=6)        fail  535   |    OOM      164
 
-Reading.  On easy inputs the two are equivalent (both instant, same automaton).  On the
-FE-hard inputs -- group automata with lossy codings, PRISM-1, the sweep tail -- Walnut
+Reading. On easy inputs the two are equivalent (both instant, same automaton). On the
+FE-hard inputs (group automata with lossy codings, PRISM-1, the sweep tail), Walnut
 8-dev at 6 GB fails on 7 of 9 and needs 7 minutes on an eighth, while ours answers 8 of
-9 in 0-170 s at the same memory.  The difference is not raw speed; it is construction
+9 in 0-170 s at the same memory. The difference is not raw speed; it is construction
 strategy: reverse-first (Brzozowski) determinization with a small forward cap, and the
-lsd/msd switch.  Both are things Walnut could adopt (it has `reverse`); the point is that
+lsd/msd switch. Both are things Walnut could adopt (it has `reverse`); the point is that
 they are the *default* here.
 
 Fairness caveats, stated plainly: Walnut got its default forward msd construction with no
 expert reformulation (Khodier's self-verifying predicates would rescue some of these);
 a bigger heap would rescue some more; and this is Walnut on the predicate its own
-authors document as the pathological one.  It is a benchmark of one predicate family, not
+authors document as the pathological one. It is a benchmark of one predicate family, not
 of the tools.
 
 ## Fibonacci / Tribonacci numeration
@@ -201,7 +202,7 @@ Same sentences, same machine (M-series mac, OpenJDK 26), same 6 GB ceiling on bo
 sides: Walnut `java -Xmx6g -jar target/Walnut-all.jar`, Peanut `AM_MEM_MB=6144`
 through `explore/engine.py`. Walnut base `?msd_fib` / `?msd_trib` with its own
 `Word Automata Library/F.txt` and `TR.txt`; Peanut `numsys fib` / `numsys trib`
-with the same automata typed as `dfao` (identical transition tables — see
+with the same automata typed as `dfao` (identical transition tables, see
 `explore/morphic_to_dfao.py`, which derives them from the substitution and checks
 them against the fixed point on `10^5` terms).
 
@@ -209,10 +210,10 @@ Reproduce: `python3 bench/fib_bench.py` (writes the numbers below),
 `python3 explore/numsys_check.py` (brute-force cross-check of every verdict).
 
 `states` = final automaton (ours counts the dead state, so ours = Walnut + 1
-wherever both finish — a free independent check of every number here).
+wherever both finish: a free independent check of every number here).
 `peak` = largest intermediate automaton built: for us the largest subset actually
 constructed anywhere in the compile; for Walnut the largest it *logged*, which is
-the largest **completed** step — the determinization that kills it never prints.
+the largest **completed** step: the determinization that kills it never prints.
 `ms` = each tool's own reported computation time.
 
 ## Fibonacci (Zeckendorf), `?msd_fib`, `F = 0100101001001010010100...`
@@ -247,7 +248,7 @@ the dead state). Nothing here needs a new construction strategy.
 **Tribonacci is where it separates.** At 6 GB, Walnut 8-dev exhausts the heap on
 four of the five Tribonacci queries after 1.4–2.8 minutes each; Peanut answers
 all five, the slowest in 4.3 s. The difference is the same one measured for base `k`
-in `bench/README.md` and `docs/TARGET1.md` — a small forward subset-construction
+in `bench/README.md` and `docs/TARGET1.md`, a small forward subset-construction
 cap that fails fast into reverse-first (Brzozowski) determinization. Every
 Tribonacci `peak` of `50001`/`50002` is literally that: the forward attempt hit
 `AM_CAP0 = 50000` and the reverse pass then finished in a fraction of a second.
@@ -264,7 +265,7 @@ answer has **26** states. Our numbers:
     Peanut, learnfe        27   346                 0.070 s   < 1 MB
 
 27 = 26 + the dead state, i.e. **exactly Khodier's minimal automaton**, reached
-in 70 ms with a largest intermediate of 346 states — seven orders of magnitude
+in 70 ms with a largest intermediate of 346 states: seven orders of magnitude
 below the documented blow-up, and without ever compiling the universally
 quantified formula (`docs/LEARNFE.md`). The Fibonacci FE is 12 = 11 + 1 states,
 which Walnut also reaches, in 36 ms.

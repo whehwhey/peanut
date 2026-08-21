@@ -1,4 +1,4 @@
-# Antichain evaluation of closed sentences — measurements
+# Antichain evaluation of closed sentences: measurements
 
 > **Measured with the pre-2026-08-19 defaults.** The flags named here are no longer
 > all opt-in: `AM_PAR` defaults to `min(8, cores-2)` and `AM_ANTICHAIN` defaults to on.
@@ -13,7 +13,7 @@ Machine: the repo's 18-core / 24 GB box, msd, `AM_MEM_MB=6144`, engines launched
 `explore/engine.py`. The tables below marked **serial** were taken one engine at a time
 (`AM_WORKERS=1`); the panel-wide sweep was taken with two workers while other build
 agents were also running, and is marked as such. `ms` is the engine's own per-query
-timer (the `? ...` reply line) — the query alone, not the `learnfe FE` that precedes it.
+timer (the `? ...` reply line): the query alone, not the `learnfe FE` that precedes it.
 `MB` is the allocator's high-water mark from the `mem` command, taken after the query;
 where it equals the value taken *before* the query, the query is invisible in the
 memory trace.
@@ -34,7 +34,7 @@ An `A` block over an `E` block: universality of the NFA `proj_j(FE)`. **serial**
 
 `single5`: the default path **exhausts a 6144 MB allocator budget**
 (`ERR memory budget exceeded: 6144 MB live`) determinizing `proj_j(FE)` and never
-answers; the antichain answers TRUE in 37 ms inside 50 MB — and 50 MB is `learnfe`'s own
+answers; the antichain answers TRUE in 37 ms inside 50 MB, and 50 MB is `learnfe`'s own
 high-water mark, so the query itself allocates nothing measurable.
 
 `AM_AC_DEBUG=1` on tail-a: NFA 2246 states over an 8-letter alphabet, **691 antichain
@@ -57,8 +57,8 @@ Two neighbouring shapes, same runs, **serial**:
                                                    single4         14       7        12     12
                                                    prism-1        103     104       199    199
 
-The same statement written out inline, with no `learnfe` anywhere — so the inner
-equality-of-factors quantifier is compiled from scratch too — still moves on single5,
+The same statement written out inline, with no `learnfe` anywhere (so the inner
+equality-of-factors quantifier is compiled from scratch too) still moves on single5,
 because there the outer block is the blowup and the inner one is not (**serial**):
 
     ? A i,n,N. E j. j >= N & (A t. t < n => T[i+t] = T[j+t])     on single5
@@ -79,8 +79,8 @@ other agents active (`bench/antichain_results.json`):
   (prism-1 `fe-crit-8/3`, 296 -> 301 ms). These are E-blocks whose body automaton is the
   entire cost, or A-blocks whose antichain is a handful of elements: swapping a cheap
   projection for a cheap reachability query changes nothing.
-* The GUI library's inline sentences — `recurrent`, `mirror`, `arb-pal`, `unbordered`,
-  `rs-count`, `ap`, `cube-free`, `overlap-free`, `has-pal`, `peltomaki` — do not move on
+* The GUI library's inline sentences (`recurrent`, `mirror`, `arb-pal`, `unbordered`,
+  `rs-count`, `ap`, `cube-free`, `overlap-free`, `has-pal`, `peltomaki`) do not move on
   prism-1, prism-d, tail-a or thue-morse, for a structural reason worth stating plainly:
   **their cost is the inner equality-of-factors quantifier, not the outer block.** On
   prism-1, `recurrent` is 47.4 s by default and 45.0 s with the antichain; `mirror` 54.4 s
@@ -93,7 +93,7 @@ other agents active (`bench/antichain_results.json`):
   determinization; the outer determinization was never the problem.
 
 **The named panel cases of `bench/STRATEGY-RESULTS.md` (prism-1 38.6 s, single3..6,
-tail-a/b/c) are unchanged and cannot change: they are open formulas** — `FE(i,j,l)` with
+tail-a/b/c) are unchanged and cannot change: they are open formulas**, with `FE(i,j,l)`'s
 three free variables. This module only fires on `?` sentences with no free variables.
 
 ## The cost of giving up
@@ -109,7 +109,7 @@ antichain passes 5 000 elements. **serial**
 The middle row is why `ev_forall` never abstains after compiling: the fallback has to
 finish the job itself (replaying `dfa.rs`'s determinization ladder on the projected NFA
 and answering by product reachability), because handing the question back means
-compiling the body a second time. Shipped behaviour is the third row — a 3.4 % overhead
+compiling the body a second time. Shipped behaviour is the third row: a 3.4 % overhead
 for the abandoned antichain attempt, identical peak and identical memory.
 
 ## Simulation
@@ -119,8 +119,8 @@ Measured on tail-a `fe-recur-N` (2246-state NFA, alphabet 8), **serial**:
     AM_AC_SIM=off   691 antichain elements, 484 920 subsumption tests,  20 ms
     AM_AC_SIM=on      1 antichain element,        8 subsumption tests, 338 ms
 
-The simulation preorder does exactly what the literature says — it collapses the
-antichain to a single element — and the naive greatest-fixpoint that computes it costs
+The simulation preorder does exactly what the literature says: it collapses the
+antichain to a single element, and the naive greatest-fixpoint that computes it costs
 seventeen times the search it saves. So it is a ladder, not a default: plain antichain
 first, simulation only if the plain one passes `AM_AC_SIM_TRIGGER` elements *and*
 `|Q|^2 * alpha <= AM_AC_SIMWORK` (8e6, which excludes both of the automata above). On
@@ -129,7 +129,7 @@ this panel that condition never fires; the flag is kept because a cheaper simula
 
 ## Gate
 
-`python3 tools/antichain_gate.py` — every script run three times: the new binary with
+`python3 tools/antichain_gate.py` runs every script three times: the new binary with
 the flag off, the new binary with the flag on, and `engine/target/release/peanut_old`
 (the engine as it was before this work). Replies are compared line by line after
 removing `ms=` and `peak=`; a run cut short by a timeout or the runner's RSS watchdog on
@@ -140,16 +140,16 @@ one binary but not another is counted as skipped, not as a disagreement.
     library       912          0 mismatches           2 (see below)       101
     fe             19          0 mismatches           0 mismatches          2
 
-* `fuzz` — the ten formula templates of `tools/fuzz_walnut.py` over 110 PRISM sequences,
+* `fuzz`: the ten formula templates of `tools/fuzz_walnut.py` over 110 PRISM sequences,
   same seed and admissibility filter as `docs/FUZZ.md`.
-* `library` — all 24 scripts of the GUI library (`gui/serve.py`) over all 19 sequences of
+* `library`: all 24 scripts of the GUI library (`gui/serve.py`) over all 19 sequences of
   `bench/panel.json`, in **both** msd and lsd. Includes the open formulas (`dfa`, `enum`,
   `witness`, `let`) as a control: the antichain must never fire on them, and their state
   counts are unchanged. The two `peanut_old` differences are `lsd/prism-a/fe-learn` and
   `lsd/prism-a/fe-use`, and they are not this module's: another agent reworded a
   `learnfe` error string in `learn.rs` ("at LCP cap" -> "at cap") in the same working
   tree. Flag-off and flag-on agree on both.
-* `fe` — `learnfe FE` plus all 14 closed FE sentences of `bench/antichain_bench.py`, on
+* `fe`: `learnfe FE` plus all 14 closed FE sentences of `bench/antichain_bench.py`, on
   all 19 panel sequences (266 sentences).
 
 Two further checks, outside the suites:

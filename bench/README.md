@@ -1,4 +1,4 @@
-# Bench — Peanut vs Walnut, equality-of-factors predicate
+# Bench: Peanut vs Walnut, equality-of-factors predicate
 
 > Peanut's defaults changed on 2026-08-19 (parallel bitset determinization,
 > antichain evaluation of closed sentences). The current head-to-head table is
@@ -30,11 +30,11 @@ a morphism/coding definition in Peanut's `def` syntax (see `docs/COMMANDS.md`).
 `walnut_fe.py` runs both engines on each sequence and writes a JSON array of
 per-sequence rows (`ours`, `ours_how`, `ours_s`, `walnut`, `walnut_s`,
 `walnut_ms_sum`) plus a summary table to stdout. Results are not checked into this
-repo — re-run to reproduce them on your own hardware.
+repo; re-run to reproduce them on your own hardware.
 
 ## Reading the output
 
 `ours`/`walnut` are minimal DFA state counts (Peanut's includes the dead state, so
-`ours = walnut + 1` whenever both finish — a useful independent cross-check).
+`ours = walnut + 1` whenever both finish: a useful independent cross-check).
 `walnut` can also be `timeout`, `OOM`, or `error`. `ours_how` records which
 determinization strategy (`mode`/`cap`) succeeded.

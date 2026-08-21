@@ -1,14 +1,14 @@
-# SPEED-ROUND6 — gate on AM_PAR / AM_ANTICHAIN / AM_STRATEGY=bdd / `learn` vs `let`
+# SPEED-ROUND6: gate on AM_PAR / AM_ANTICHAIN / AM_STRATEGY=bdd / `learn` vs `let`
 
 Mechanical Sonnet gate. Machine: 18-core Apple Silicon, 24 GB. `git pull` was
 already up to date; `cargo build --release` was already current for this tree
 (the four algorithms below are already committed, each behind its own
-default-off env flag — this round gates them, it does not introduce them).
+default-off env flag; this round gates them, it does not introduce them).
 `engine/target/release/peanut_old` is the pre-`det_par`/`symbolic`/`antichain`/
 generalised-`learn` binary (`fb6a648`), used as the independent reference.
 
 Configurations gated: **default** (no env), **AM_PAR=8**, **AM_ANTICHAIN=1**,
-**AM_STRATEGY=bdd** — plus **`learn` vs `let`** for REV/PERIOD/BORDER on the
+**AM_STRATEGY=bdd**, plus **`learn` vs `let`** for REV/PERIOD/BORDER on the
 19-case `bench/panel.json`.
 
 ## 1. Fuzz-diff
@@ -19,11 +19,11 @@ FE-with-l-bound, right-special, recurrence, eventually-periodic,
 quantifier-alternation-with-multiplication), reused via `import fuzz_walnut`,
 `per_cell=2` → 28 admissible (k,m,coding) sequences over the 14 cells → **280
 (sequence, formula) pairs**. Driver: `/tmp/.../scratchpad/gate6.py` (not
-committed — a throwaway harness built for this round), run via
+committed, a throwaway harness built for this round), run via
 `explore/engine.py`'s `run`/`pool` so every call keeps the memory-budget and
 RAM-admission guards. Peanut timeout 45s/1536 MB per config call (trimmed from
 `fuzz_walnut.py`'s 120s so the 4-configs × 280-pairs sweep finishes in minutes;
-a disagreement inside 45s is exactly as much a blocker as one at 120s — this
+a disagreement inside 45s is exactly as much a blocker as one at 120s; this
 only affects how many hard instances resource-exhaust rather than answer, which
 is recorded as `timeout`, not compared).
 
@@ -31,39 +31,39 @@ is recorded as `timeout`, not compared).
 state count compared against `default` on the *same* pair.
 **0 verdict or state-count disagreements.** 3 timeouts (resource exhaustion at
 the 45s cap on `border`/`recurrence`/`right_special`-style instances, the same
-templates `docs/FUZZ.md` names as the hard ones) — no comparison is drawn on a
+templates `docs/FUZZ.md` names as the hard ones); no comparison is drawn on a
 pair where either side didn't finish.
 
-**(b) vs `peanut_old`** — the same 280 `default`-config formulas, run on
+**(b) vs `peanut_old`**: the same 280 `default`-config formulas, run on
 `peanut_old`. **0 disagreements.** 4 timeouts (resource exhaustion, `peanut_old`
 lacking the flat core is if anything more likely to time out, not less).
 
 **(c) vs Walnut 8-dev**, 100 of the 280 pairs (first 100 by draw order),
-`default` config verdict only (state counts are not compared here — see
+`default` config verdict only (state counts are not compared here, see
 `docs/FUZZ.md`'s note on Peanut/Walnut reporting-granularity for the final
-0-ary automaton). **0 disagreements** — run **serially**.
+0-ary automaton). **0 disagreements**: run **serially**.
 
 Serial-only is not incidental: a first pass ran the 100 Walnut calls 3-at-a-time
-(`ThreadPoolExecutor(max_workers=3)`) and produced one `verdict_disagree` —
+(`ThreadPoolExecutor(max_workers=3)`) and produced one `verdict_disagree`:
 `k=2 m=2` sequence (`0->01,1->01` coded `1,0`, i.e. the periodic word `1010…`),
-`palindrome` template, `E i. i<20 & A t1,t2. (t1<4&t2<4&t1+t2+1=4)=>T[i+t1]=T[i+t2]`
-— Peanut/brute-force `FALSE`, that Walnut run `TRUE`. Rerunning the identical
+`palindrome` template, `E i. i<20 & A t1,t2. (t1<4&t2<4&t1+t2+1=4)=>T[i+t1]=T[i+t2]`,
+Peanut/brute-force `FALSE`, that Walnut run `TRUE`. Rerunning the identical
 script **serially** reproduced Walnut `FALSE`, agreeing with Peanut and an
 independent brute force over the fixed-point prefix (same adjudicator
 `tools/fuzz_walnut.py:brute_eval` uses). Concurrent Walnut JVMs sharing
 `walnut7/Session` are not safe to adjudicate correctness from; the reported
 100-pair run above is serial throughout, and this is now the harness's default
-(see `gate6.py`'s comment at the walnut-phase call site). Not a Peanut finding —
+(see `gate6.py`'s comment at the walnut-phase call site). Not a Peanut finding:
 recorded here because a report claiming "0 disagreements" needs the reader to
 know one *did* transiently appear and why it doesn't count.
 
 Raw records: `results/gate6_fuzz.jsonl` (280 rows, each with all 4 configs +
 `peanut_old`), `results/gate6_blockers.json` (empty array).
 
-## 2. `learn` vs `let` — REV / PERIOD / BORDER on the panel
+## 2. `learn` vs `let`: REV / PERIOD / BORDER on the panel
 
-Direct constructions (index terms must be addition-only — `docs/LEARN.md`:
-"`j+l-1-t` is not an admissible index term on its own" — so REV and BORDER are
+Direct constructions (index terms must be addition-only, per `docs/LEARN.md`:
+"`j+l-1-t` is not an admissible index term on its own", so REV and BORDER are
 written with an auxiliary existential variable per `docs/RECON.md`'s pattern,
 PERIOD needs no rewrite):
 
@@ -76,50 +76,50 @@ let BORDIR(i,l,b)  b<=l & (E d. b+d=l & (A p. (p>=i & p<i+b) => T[p] = T[p+d]))
 For each of the panel's 19 sequences and each of the 3 relations: `learn LN
 <kind>` then `let <DIRECT>`, then `? A <params>. $LN(<params>) <=> $DIRECT(<params>)`
 inside one engine session (params `i,j,l` for rev, `i,l,p` for period, `i,l,b`
-for border) — 57 checks, timeout 150s / 6144 MB each, run via `engine.pool`
+for border): 57 checks, timeout 150s / 6144 MB each, run via `engine.pool`
 (4 workers).
 
-**45/57 checks: `TRUE` — `learn` and the direct `let` construction agree
+**45/57 checks: `TRUE`, `learn` and the direct `let` construction agree
 exactly, everywhere the direct construction finishes**, including every non-hard
 panel sequence (thue-morse, period-doubling, rudin-shapiro, paperfolding,
-cantor, mephisto, prism-a, prism-d, champion-m5, k3m3-artefact-a/b — all 3
+cantor, mephisto, prism-a, prism-d, champion-m5, k3m3-artefact-a/b, all 3
 relations each) plus `prism-1`/rev and `prism-1`/border.
 
-**12/57: resource exhaustion on the *direct* construction**, not disagreement —
+**12/57: resource exhaustion on the *direct* construction**, not disagreement:
 `prism-1`/period, all 3 relations on `single6`, all 3 on `tail-a`, all 3 on
 `tail-b`, `tail-c`/rev, `tail-c`/period (150s timeout), `tail-c`/border (6144 MB
 budget, after `learn` itself finished: `states=2086 ms=37278`). This reproduces,
 per relation, exactly the asymmetry `docs/LEARN.md` already documents for
 Tribonacci ("PERIOD: 1.01s learned vs 120.29s direct, same 404 states ... BORDER
-has no direct value at all — `let` exhausts 6GB") — the direct construction is
+has no direct value at all — `let` exhausts 6GB"): the direct construction is
 the one that blows up, `learn` is not asked to and does not.
 
 **0 disagreements.** Raw: `results/gate6_learn_let.json`.
 
-## 3. Benchmark — panel hard cases + Tribonacci, seconds / peak MB per config
+## 3. Benchmark: panel hard cases + Tribonacci, seconds / peak MB per config
 
 > **Corrected 2026-08-19 by the "Final defaults" section below**: `tail-c`'s direct
 > `let FE` does **not** die at 6 GB under `AM_PAR=8`. It finishes in 191.1 s / 2818 MB
 > at 1382 states. The claim below is wrong; `bench/DETPAR-RESULTS.md` was right.
 
 `AM_MEM_MB=6144`, msd, query `let FE(i,j,l) A t. t < l => T[i+t] = T[j+t]`
-except `tail-c` (dies at 6 GB under every configuration below — same finding as
-`docs/LEARNFE.md`/`bench/DETPAR-RESULTS.md` — so `learnfe FE` is used there
+except `tail-c` (dies at 6 GB under every configuration below, same finding as
+`docs/LEARNFE.md`/`bench/DETPAR-RESULTS.md`, so `learnfe FE` is used there
 instead, noted in the table). Seconds are the engine's own `ms=`; peak MB is the
 engine's own allocator high-water mark (`mem` command), not RSS.
 
 `default` and `AM_PAR=8` were run fresh, quiet-machine, one process at a time,
 for this round. `AM_STRATEGY=bdd` reuses `bench/BDD-RESULTS.md`'s panel rows
-(same binary, same query, same 6144 MB, machine **under concurrent load**
-— its own note: "1.2-1.4x higher [seconds] than the quiet-machine figures ...
+(same binary, same query, same 6144 MB, machine **under concurrent load**,
+its own note: "1.2-1.4x higher [seconds] than the quiet-machine figures ...
 prism-1 48.7s here vs 38.6s there"; states/MB are load-independent and were not
 re-measured). `AM_ANTICHAIN=1`: proven at the source level to be a no-op for
-this benchmark — `logic.rs`'s `AM_ANTICHAIN` hook (`crate::antichain::eval_closed`)
+this benchmark, `logic.rs`'s `AM_ANTICHAIN` hook (`crate::antichain::eval_closed`)
 fires only on a **closed** sentence (a `?` query), and `let FE(i,j,l) ...`
 is an **open** 3-free-variable predicate, so the antichain code path is never
 entered; spot-checked fresh on `single3` (`states=190 ms=11 MB=6`, identical to
 `default`'s `ms=10 MB=6`) and `single6` (`states=3971 ms=18679 MB=169`,
-identical to `default`'s `ms=17917 MB=169`) — column below is `default`'s own
+identical to `default`'s `ms=17917 MB=169`); column below is `default`'s own
 numbers, not a separate run, for every row.
 
 ### Equality of factors, base k
@@ -155,33 +155,33 @@ other: 71-84ms).
 
 - **No disagreements anywhere**: 1120 (config-vs-default) + 280 (vs `peanut_old`)
   + 100 (vs Walnut) fuzz-diff pairs, 57 `learn`-vs-`let` panel checks, 4-way
-  Tribonacci cross-check (states=27 every time) — every verdict, every minimal
+  Tribonacci cross-check (states=27 every time): every verdict, every minimal
   state count, matches. The det_par/symbolic/antichain/generalised-`learn` work
   already on `main` is correctness-neutral against the reference on everything
   this gate could exercise in the time available.
 - **AM_PAR=8 is the win**: 2.5x-11.3x faster than default on every panel-hard
   case measured (prism-1 32.8s→2.9s, single6 17.9s→1.7s, tail-a 144.6s→15.3s,
   tail-b 176.3s→20.9s, Tribonacci FE 3.05s→0.40s), and lower peak MB
-  everywhere too, including the two `tail-*` cases (1480→741 MB, 1249→729 MB —
+  everywhere too, including the two `tail-*` cases (1480→741 MB, 1249→729 MB,
   the parallel frontier is smaller here, not larger, contrary to a naive
   parallelism-costs-memory prior).
 - **AM_ANTICHAIN=1 is a documented no-op here, correctly**: it only ever fires
   on closed sentences, this benchmark's query is an open predicate, and the
-  binary takes the identical code path — spot-checks confirm identical seconds
+  binary takes the identical code path: spot-checks confirm identical seconds
   and MB to the single millisecond/megabyte where it matters.
 - **AM_STRATEGY=bdd is a wash to mildly negative on this panel** (0.95x-1.09x
   of default depending on case, per `BDD-RESULTS.md`'s own load-adjusted
-  numbers) — expected: `bench/BDD-RESULTS.md` found the same thing at 1156-job
+  numbers), expected: `bench/BDD-RESULTS.md` found the same thing at 1156-job
   fuzz scale (0 disagreements, symbolic pays off on wide/sparse alphabets, not
   the equality-of-factors panel's shape).
 - **tail-c still needs `learnfe`** under every configuration, unchanged from
-  prior rounds — `let FE` exhausts 6144 MB regardless of AM_PAR/AM_ANTICHAIN/
+  prior rounds: `let FE` exhausts 6144 MB regardless of AM_PAR/AM_ANTICHAIN/
   AM_STRATEGY, all three being determinization/evaluation strategies for the
   *same* blown-up intermediate automaton the direct construction always builds.
 - **Against Walnut's best-strategy-per-case column**, `AM_PAR=8` beats it on
   every base-k row now measured (prism-1 2.9s vs 90.8s, single3-6, tail-a 15.3s
   vs 66s, tail-b 20.9s vs 163s) and on Tribonacci FE (0.40s ladder / 0.084s
-  learnfe vs 62s) — consistent with `bench/DETPAR-RESULTS.md`'s prior finding
+  learnfe vs 62s), consistent with `bench/DETPAR-RESULTS.md`'s prior finding
   that `AM_PAR=8` flips the one prior Walnut-wins case (tail-a) in Peanut's
   favour; tail-c is the only row where Walnut's CCLS (10.6s) still beats
   Peanut's `learnfe` (14.2-16.9s).
@@ -197,7 +197,7 @@ None.
 The gate above found **no disagreement in any configuration**, so nothing is disabled
 for a correctness reason and `docs/KNOWN-ISSUES.md` records no algorithm bug from this
 round. What follows is the decision about defaults and the measurement it was made
-from — a fresh run of every configuration with the new defaults in place, because
+from: a fresh run of every configuration with the new defaults in place, because
 several of the earlier tables compare an opt-in flag against a *serial* baseline that
 is no longer what the engine does.
 
@@ -216,11 +216,11 @@ configurations of one binary, back to back per case:
 
 | flag | old default | new default | reason |
 |---|---|---|---|
-| `AM_PAR` — flat/parallel determinization (`det_par.rs`) | off (serial reference path) | **`min(8, cores-2)`** | faster on all 19 panel sequences and on Tribonacci, never slower by more than 1 ms on any of them, and lower peak memory on every case above 10 MB |
-| `AM_ANTICHAIN` — closed-sentence evaluation (`antichain.rs`) | off | **on** | 3x-66x on the `A..E..` closed shapes it fires on, and it answers two sentences the old default cannot answer at 6 GB; worst measured cost +5 ms on a 5 ms sentence |
-| `AM_STRATEGY` — symbolic/BDD core (`symbolic.rs`) | off | **off** | correct, but measured against the *new* baseline it is 3x-11x slower on the base-3 panel sequences and never faster on any panel row (§3) |
+| `AM_PAR`: flat/parallel determinization (`det_par.rs`) | off (serial reference path) | **`min(8, cores-2)`** | faster on all 19 panel sequences and on Tribonacci, never slower by more than 1 ms on any of them, and lower peak memory on every case above 10 MB |
+| `AM_ANTICHAIN`: closed-sentence evaluation (`antichain.rs`) | off | **on** | 3x-66x on the `A..E..` closed shapes it fires on, and it answers two sentences the old default cannot answer at 6 GB; worst measured cost +5 ms on a 5 ms sentence |
+| `AM_STRATEGY`: symbolic/BDD core (`symbolic.rs`) | off | **off** | correct, but measured against the *new* baseline it is 3x-11x slower on the base-3 panel sequences and never faster on any panel row (§3) |
 | `AM_LAZY_CLOSED` (`det_par.rs`) | off | **off** | correct and gated, worth under 1 %, and the antichain now takes the closed sentences first |
-| `learn NAME <kind>` (`learn.rs`) | — | — | a command, not a strategy. `let` still compiles what it is given; nothing is silently rerouted to the learner |
+| `learn NAME <kind>` (`learn.rs`) | - | - | a command, not a strategy. `let` still compiles what it is given; nothing is silently rerouted to the learner |
 
 Ladder order under the new defaults, for one existential projection:
 
@@ -229,7 +229,7 @@ Ladder order under the new defaults, for one existential projection:
     forward(AM_CAP0=50k) -> Brzozowski(200k) -> forward(AM_CAP=3M) -> Brzozowski(12M)
     ... every rung running the flat, bitset-packed, frontier-parallel core
 
-## 2. Equality of factors, base k — the named hard cases
+## 2. Equality of factors, base k: the named hard cases
 
 `let FE(i,j,l) A t. t < l => T[i+t] = T[j+t]`. States identical in all three
 configurations on every row.
@@ -248,10 +248,10 @@ configurations on every row.
 
 `*` tail-c under the old default is killed by `explore/engine.py`'s RSS watchdog after
 88 s (RSS past 9.4 GB while the allocator's own 6144 MB live-byte budget had not yet
-been reached — the reference path's `Vec<Vec<State>>` NFA carries that much allocator
+been reached: the reference path's `Vec<Vec<State>>` NFA carries that much allocator
 overhead). `bench/DETPAR-RESULTS.md` saw the same case exit 3 on the live-byte budget
 after 392.7 s. Either way the old default does not answer tail-c at 6 GB and the new
-one does, in 191.1 s / 2818 MB, at the same 1382 states `learnfe` reports — which
+one does, in 191.1 s / 2818 MB, at the same 1382 states `learnfe` reports, which
 resolves the disagreement between `bench/DETPAR-RESULTS.md` ("finishes, 202 s") and
 §3 above ("dies at 6 GB under every configuration") in favour of DETPAR: it finishes.
 `learnfe` is still 12x faster and 56x smaller on that row and remains the right tool.
@@ -277,21 +277,21 @@ Same effect, same size, on Tribonacci `learnfe` (§5).
     k3m3-artefact-b        71   0.026 /   6   0.006 /   6   0.068 /  37
 
 New vs old on the easy rows: 1.3x-5.9x faster where there is any work at all, and on
-the five rows that finish in a millisecond either way the difference is +1 ms — the
+the five rows that finish in a millisecond either way the difference is +1 ms: the
 one-time cost of building the thread pool. Same states everywhere.
 
 **`AM_STRATEGY=auto` is off because of this table, not because of the gate.**
 `bench/BDD-RESULTS.md` measured `auto` at 1.85x-1.88x *faster* than the baseline on
-`prism-d` — but that baseline was the serial reference path. Against the parallel
+`prism-d`, but that baseline was the serial reference path. Against the parallel
 default the same three base-3 sequences go the other way: prism-d 0.069 s -> 0.204 s
 (3.0x slower), k3m3-artefact-a 0.010 s -> 0.046 s (4.6x), k3m3-artefact-b 0.006 s ->
 0.068 s (11.3x). `auto` is not faster than the new default on **any** row of the
 19-sequence panel; the largest gain it shows anywhere is memory (prism-d 102 MB ->
-34 MB, k3m3-artefact-b's is worse not better). It keeps its own case — the 18x on the
-five-variable `FE2` reformulation over base 3 — and that case is a session flag away,
+34 MB, k3m3-artefact-b's is worse not better). It keeps its own case (the 18x on the
+five-variable `FE2` reformulation over base 3) and that case is a session flag away,
 which is where it belongs.
 
-## 4. Closed sentences — where the antichain lives, and one regression that is not its fault
+## 4. Closed sentences: where the antichain lives, and one regression that is not its fault
 
 Four closed sentences over the learned `FE`, on six sequences, all three configurations
 (`bench/defaults_bench.py closed`, `results/defaults_closed.json`). Every cell is the
@@ -341,13 +341,13 @@ parallel/flat determinization core. Narrowed further, on `fe-cube`:
     AM_PAR=1 AM_FAST=1    (flat core, one thread)         383 ms
     default               (flat core, eight threads)      325 ms
 
-So it is **the flat core, not the threads** — on a sentence whose projections are each
+So it is **the flat core, not the threads**: on a sentence whose projections are each
 small, packing every one of them into a `FlatNfa` with a transposed successor buffer
 costs more than the reference core's `Vec<Vec<State>>` does, and the pool then wins a
 little of it back. Three candidate mitigations were implemented and measured during
-this round — a minimum block size before the pool is used, a minimum `nstates * alpha`
+this round: a minimum block size before the pool is used, a minimum `nstates * alpha`
 before the flat core is used at all, and a lower cap on `Dfa::product`'s
-direct-indexed pair table — and **none of them moved this row** (326/325/330 ms across
+direct-indexed pair table, and **none of them moved this row** (326/325/330 ms across
 every threshold tried), so all three were reverted rather than shipped as unvalidated
 knobs. The regression is recorded, with its reproduction, as
 `docs/KNOWN-ISSUES.md` §7; it is bounded at +200 ms on the worst case measured and is
@@ -388,8 +388,8 @@ magnitude, not stopwatch. Peanut counts the dead state, so Peanut states = Walnu
 **Where Walnut's best is still faster: tail-c, and only tail-c.** CCLS answers it in
 10.6 s; Peanut's best on that row is 16.10 s through the learner, 191.1 s through the
 direct ladder. Two rows moved into Peanut's column since `bench/STRATEGY-RESULTS.md`
-was written — tail-a (66 s Walnut vs 139 s Peanut then, 14.49 s now) and tail-b (163 s
-vs 168 s then, 19.41 s now) — and single3 moved for the same reason (0.4 s vs 1.5 s
+was written: tail-a (66 s Walnut vs 139 s Peanut then, 14.49 s now) and tail-b (163 s
+vs 168 s then, 19.41 s now), and single3 moved for the same reason (0.4 s vs 1.5 s
 then, 0.004 s now). None of that makes Peanut's algorithms better than Walnut's: with
 `[strategy]` chosen per query Walnut answers every one of these cases, `learnfe` is a
 reimplementation of Khodier's construction that Walnut 8 is adopting, and the honest
@@ -412,7 +412,7 @@ All run on the shipped binary, no environment set except where stated.
 The `AM_FAST_VERIFY` sweep's one flagged line is `prism-a`/lsd's
 `ERR learnfe no progress ... at cap 67108864`, which reproduces identically under
 `AM_PAR=1` and is a pre-existing property of the learner on that sequence, not a
-verification failure — no assertion fired in any session.
+verification failure: no assertion fired in any session.
 
 ## 8. What a reader should not conclude
 

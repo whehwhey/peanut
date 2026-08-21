@@ -1,9 +1,9 @@
-# Walnut determinization strategies -- what they are, and why our first
+# Walnut determinization strategies: what they are, and why our first
 # BENCHMARKS.md was unfair without them
 
 John Nicol (Walnut's developer) pointed out that Walnut 7.0+ ships alternative
-determinization strategies -- Brzozowski's algorithm and two on-the-fly (OTF)
-constructions from his [OTF library](https://github.com/jn1z/OTF) -- and that our
+determinization strategies, Brzozowski's algorithm and two on-the-fly (OTF)
+constructions from his [OTF library](https://github.com/jn1z/OTF), and that our
 first benchmark round compared Peanut only against Walnut's **default** strategy
 (plain subset construction, "SC"). That is not a fair comparison of the tools; it
 is a comparison of Peanut against one out of six things Walnut can do. This file
@@ -23,9 +23,9 @@ strategy we could run**, not just the default.
   > faster; for larger NFAs, sometimes 10x less memory.
 * `walnut7/Help Documentation/Commands/Metacommands/[strategy].txt` (verbatim
   syntax, see below).
-* `walnut7/src/main/java/Automata/FA/DeterminizationStrategies.java` -- the
+* `walnut7/src/main/java/Automata/FA/DeterminizationStrategies.java`: the
   actual `Strategy` enum and dispatch logic.
-* `walnut7/src/main/java/Main/MetaCommands.java` -- metacommand parsing and
+* `walnut7/src/main/java/Main/MetaCommands.java`: metacommand parsing and
   per-automaton-index strategy lookup.
 
 ## The six strategies
@@ -40,7 +40,7 @@ strategy we could run**, not just the default.
 | `BRZ-CCLS` | `BRZCCLS`            | Brzozowski's reversal step, then OTF-CCLS for the redetermization |
 
 (Underscores/dashes are ignored when matching, so `BRZ_CCLS`, `brz-ccls`,
-`BRZCCLS` all resolve to the same strategy --
+`BRZCCLS` all resolve to the same strategy:
 `DeterminizationStrategies.Strategy.fromString`.)
 
 Per Walnut's own help text: "For a given automaton, it's not clear which
@@ -48,7 +48,7 @@ algorithm is best; you may need to try them all. Rules of thumb: usually CCLS
 outperforms CCL, and BRZ-CCLS outperforms BRZ-CCL. However, if the NFA size is
 very large (over 50,000 say), you will need a lot of memory and time to compute
 simulation in CCLS and BRZ-CCLS, and they may crash." That is exactly what we
-found empirically too -- see the results tables below.
+found empirically too; see the results tables below.
 
 ## Exact syntax
 
@@ -62,11 +62,11 @@ The metacommand is a prefix immediately in front of the command it modifies.
 1. **Metacommands only parse on commands ending in `::`, not a single `:`.**
    A single `:` (which is what the original `bench/walnut_fe.py` and
    `bench/fib_bench.py` used to keep output terse) silently drops the
-   `[strategy ...]` prefix -- Walnut prints `Metacommands are currently only
+   `[strategy ...]` prefix: Walnut prints `Metacommands are currently only
    supported for commands ending in ::` and falls back to the default. Worse:
    even when the whole session runs with `printDetails=false` (which is what a
    trailing single `:` sets), `DeterminizationStrategies.determinize()` never
-   even reads `MetaCommands.getStrategy()` -- the strategy lookup itself is
+   even reads `MetaCommands.getStrategy()`: the strategy lookup itself is
    gated behind `Logging.shouldPrintDetails()`, so a `:`-terminated command is
    hard-wired to SC regardless of what metacommand precedes it. Every one of
    our reruns below uses `::`.
@@ -78,7 +78,7 @@ The metacommand is a prefix immediately in front of the command it modifies.
    before we ever touch `[strategy]`, so those steps stay on SC by
    construction (they don't call the general determinizer with a different
    strategy already active); only the subsequent `def`/`eval` quantifier
-   elimination -- which produces a plain DFA -- runs under the chosen
+   elimination (which produces a plain DFA) runs under the chosen
    strategy. We therefore place `[strategy * X]` immediately before the final
    `def`/`eval` line and nowhere earlier.
 3. **`transduce` does not go through `DeterminizationStrategies` at all.**
@@ -86,8 +86,8 @@ The metacommand is a prefix immediately in front of the command it modifies.
    determinization (`transduceMsdDeterministic`) with no reference to
    `Strategy`/`strategy` anywhere in the file. The `[strategy]` metacommand has
    no effect on `transduce`, so the one OOM row in `bench/breadth.md` (`LUCAS x
-   RUNSUM2`) cannot be fixed by strategy selection -- confirmed by grep, not
-   assumed; see `bench/breadth.md` for the honest note.
+   RUNSUM2`) cannot be fixed by strategy selection (confirmed by grep, not
+   assumed); see `bench/breadth.md` for the honest note.
 
 ## `[export]`, for completeness
 
@@ -98,14 +98,14 @@ but documented because Nicol raised it alongside `strategy`:
     [export * TXT]   ## export all intermediate automata to TXT format
 
 Exports land in the session's `Result/` directory as `<name>_pre_<idx>.<fmt>`
-(before determinization) -- see `walnut7/Help Documentation/Commands/Metacommands/[export].txt`.
+(before determinization); see `walnut7/Help Documentation/Commands/Metacommands/[export].txt`.
 
 ## How we reran the benchmarks
 
 `bench/walnut_strategies.py` reruns exactly the panel rows and Tribonacci rows
 that OOM'd or timed out under SC, once per non-SC strategy (`BRZ`, `CCL`, `CCLS`,
 `BRZ-CCL`, `BRZ-CCLS`), same `-Xmx6g`, same 900 s wall-clock ceiling as the
-original runs. Easy rows (both tools already instant under SC) were not rerun --
+original runs. Easy rows (both tools already instant under SC) were not rerun:
 there is nothing for a smarter strategy to fix there. The Peanut column is
 untouched: it was already measured and stands as reported.
 
@@ -114,8 +114,8 @@ Results: `bench/walnut_strategies_results.json` (raw), folded into
 
 ## Credit
 
-This whole exercise -- rerunning against Brzozowski/OTF (documented in Walnut's
-CHANGELOG for 7.0+) instead of only the default -- follows a correction from John
+This whole exercise, rerunning against Brzozowski/OTF (documented in Walnut's
+CHANGELOG for 7.0+) instead of only the default, follows a correction from John
 Nicol, Walnut's developer. `learnfe` (Peanut's FE construction via self-verifying
 predicates) is a reimplementation of an idea from Bachir Khodier's thesis
 (arXiv:2507.19717); see the note in `BENCHMARKS.md` and `docs/LEARNFE.md`.

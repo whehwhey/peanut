@@ -1,4 +1,4 @@
-# DETPAR — measured before/after (flat determinization core, `engine/src/det_par.rs`)
+# DETPAR: measured before/after (flat determinization core, `engine/src/det_par.rs`)
 
 > **Measured with the pre-2026-08-19 defaults.** The flags named here are no longer
 > all opt-in: `AM_PAR` defaults to `min(8, cores-2)` and `AM_ANTICHAIN` defaults to on.
@@ -7,7 +7,7 @@
 
 Machine: 18-core Apple Silicon, 24 GB, macOS. Engine budget `AM_MEM_MB=6144` on
 every row (the ceiling `bench/README.md` and `bench/STRATEGY-RESULTS.md` used).
-Digit order msd.  Query, unless stated otherwise:
+Digit order msd. Query, unless stated otherwise:
 
     let FE(i,j,l) A t. t < l => T[i+t] = T[j+t]
 
@@ -19,7 +19,7 @@ flag set the binary runs the old code path.
 
 Seconds are the engine's own `ms=` field; MB is the allocator high-water mark
 (`mem` command), not RSS. The three configurations of each row were run
-back-to-back, one process at a time, because other jobs share this machine —
+back-to-back, one process at a time, because other jobs share this machine;
 interleaving is what makes the ratios meaningful, not the absolute seconds.
 
 ## Equality of factors, base k
@@ -42,7 +42,7 @@ interleaving is what makes the ratios meaningful, not the absolute seconds.
 `*FAILED*` = the reference engine exits 3 ("memory budget exceeded: 6144 MB")
 after 392.7 s. This row is the one qualitative change: the flat core's smaller
 footprint (2819 MB against >6144 MB) is what lets the ordinary ladder finish
-tail-c at all — 1382 states, agreeing with the `learnfe` answer for the same
+tail-c at all: 1382 states, agreeing with the `learnfe` answer for the same
 sequence, which is how we know it is right.
 
 ## Tribonacci numeration system
@@ -92,7 +92,7 @@ has one state either way); only the work done to get there changes. Seconds:
 
 Reading, without varnish: **`AM_LAZY_CLOSED` is worth 0-5 %, usually under 1 %.**
 It removes the final subset construction, zero closure and minimization, but by
-the time the *last* variable is projected the automaton is already small -- the
+the time the *last* variable is projected the automaton is already small: the
 earlier quantifiers are where the cost is. It never costs anything (the
 reachability scan is O(edges) against work it replaces), it is the only one of
 these flags that changes what is computed rather than how, and it is off by
@@ -106,21 +106,21 @@ variables, so no projection in it is closed.
 
 Measured before implementing: under the hardest configuration (Tribonacci, where
 `base::adder` goes through `numsys` files rather than the built-in fast path),
-`? E i,j,t. i+t=j+t` — two adders, one comparator, three constants — reports
+`? E i,j,t. i+t=j+t` (two adders, one comparator, three constants) reports
 `ms=0`. The base constructors are already sub-millisecond and are called O(#terms)
 times per formula, so a memo table would be unmeasurable; it is not worth an edit
 to a file this builder does not own. Not implemented, deliberately.
 
 ## Correctness gate
 
-Run: `python3 tools/fuzz_engines.py 200 8`.  Raw timings: `results/detpar_bench.json`.
+Run: `python3 tools/fuzz_engines.py 200 8`. Raw timings: `results/detpar_bench.json`.
 
 - **228 (sequence, formula) pairs x 4 configurations = 912 engine runs, 0
   mismatches.** 200 random closed sentences (107 TRUE / 93 FALSE) over PRISM-drawn
   admissible k-automatic sequences across all ten `tools/fuzz_walnut.py` templates,
   plus the FE panel in both digit orders (28 runs). Compared per pair: verdict,
   minimal state count, and peak intermediate automaton size (`peak=`, which reached
-  3,000,006 on the hardest pairs — i.e. the ladder's big forward cap was exercised).
+  3,000,006 on the hardest pairs, i.e. the ladder's big forward cap was exercised).
 - **`AM_FAST_VERIFY=1`** builds every `exists`, `minimize` and `zero_closure` both
   ways and asserts `nstates`, `alpha`, `vars`, `accept` and `trans` are equal
   element by element. Clean over the whole panel in both digit orders.

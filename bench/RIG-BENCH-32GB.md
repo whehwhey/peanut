@@ -1,8 +1,8 @@
-# RIG-BENCH-32GB -- is the 6 GB comparison fair on a 64 GB box?
+# RIG-BENCH-32GB: is the 6 GB comparison fair on a 64 GB box?
 
 Generated 2026-08-20 08:22 by `explore/rig_bench_table.py` from `results/rig/bench32gb.jsonl` (24 Peanut cells, 62 Walnut cells).
 
-Question from `bench/STRATEGY-RESULTS.md` and `bench/SPEED-ROUND6.md`: those rounds compared Peanut and Walnut 8-dev at 6 GB and 15 to 30 min on an 18-core Mac. This round reruns the equality-of-factors panel hard cases and four Tribonacci queries on the peanut-rig (i9-14900, 32 threads, 64 GB, Windows) at `AM_MEM_MB=32768` and `java -Xmx32g` on both sides, 1800 s ceiling, one process at a time (the FE ensemble sweep ran concurrently throughout; the harness never launches a second engine or JVM while one is live). `let FE(i,j,l) A t. t < l => T[i+t] = T[j+t]` on the panel; the four Tribonacci queries are cube-exists, 4th-power-exists, palindrome-of-every-length, and FE direct.
+Question from `bench/STRATEGY-RESULTS.md` and `bench/SPEED-ROUND6.md`: those rounds compared Peanut and Walnut 8-dev at 6 GB and 15 to 30 min on an 18-core Mac. This round reruns the equality-of-factors panel hard cases and four Tribonacci queries on the test machine (i9-14900, 32 threads, 64 GB, Windows) at `AM_MEM_MB=32768` and `java -Xmx32g` on both sides, 1800 s ceiling, one process at a time (the FE ensemble sweep ran concurrently throughout; the harness never launches a second engine or JVM while one is live). `let FE(i,j,l) A t. t < l => T[i+t] = T[j+t]` on the panel; the four Tribonacci queries are cube-exists, 4th-power-exists, palindrome-of-every-length, and FE direct.
 
 ## Correctness note: cross-checking Walnut against Peanut
 
@@ -10,7 +10,7 @@ For a predicate with free variables (the equality-of-factors panel: `prism-1`, `
 
 Every Walnut strategy that runs to completion agrees with Peanut on this data: each completing predicate count equals Peanut minus one (all completing strategies return 466 on `prism-1`, matching Peanut's 467), and each closed sentence returns the same verdict. There are no state-count or verdict disagreements.
 
-Retraction: earlier revisions of this file reported a `prism-1` / `BRZ` = 1058 cell as a suspected Walnut bug. That was wrong. The 1058 was an intermediate NFA size captured from a BRZ run that was killed early -- the JVM was terminated under concurrent memory pressure before the query finished -- which our benchmark harness misread as a final count. BRZ on `prism-1` needs about 2422 s to complete, longer than this benchmark's 1800 s ceiling, so it is a *timeout* in this window; run to completion it returns 466, in exact agreement with `CCLS`, `BRZ-CCL`, `BRZ-CCLS` and Peanut (467 = 466 + dead state), and 466 is confirmed minimal independently. There is no Walnut bug. Full write-up: `bench/walnut-bug/ISSUE.md`.
+Retraction: earlier revisions of this file reported a `prism-1` / `BRZ` = 1058 cell as a suspected Walnut bug. That was wrong. The 1058 was an intermediate NFA size captured from a BRZ run that was killed early (the JVM was terminated under concurrent memory pressure before the query finished), which our benchmark harness misread as a final count. BRZ on `prism-1` needs about 2422 s to complete, longer than this benchmark's 1800 s ceiling, so it is a *timeout* in this window; run to completion it returns 466, in exact agreement with `CCLS`, `BRZ-CCL`, `BRZ-CCLS` and Peanut (467 = 466 + dead state), and 466 is confirmed minimal independently. There is no Walnut bug. Full write-up: `bench/walnut-bug/ISSUE.md`.
 
 ## Head-to-head, 32 GB, per case
 
@@ -36,7 +36,7 @@ determinization (`let FE`, i.e. `AM_AUTOLEARN=0`), which also needs 2818 MB and 
 not even complete under Peanut's default 2048 MB budget. Since 2026-08-20 an ordinary
 `let FE(i,j,l) A t. t<l => T[i+t]=T[j+t]` auto-detects the equality-of-factors shape and,
 when the ladder cannot build it cheaply, hands off to the `learnfe` guess-and-verify path
-(`AM_AUTOLEARN`, default on — see `docs/LEARNFE.md` §10, `docs/COMMANDS.md`). On this
+(`AM_AUTOLEARN`, default on, see `docs/LEARNFE.md` §10, `docs/COMMANDS.md`). On this
 sequence that answers in **~16 s at ~230 MB on the Mac** (matching prior `learnfe`
 rounds, `docs/LEARNFE.md` §6.2), which beats Walnut `CCLS`'s 28.5 s here. Honest caveat,
 unchanged from before: this is the *learn* construction (a candidate learned by an active
@@ -85,7 +85,7 @@ Seconds per strategy; `to` = 1800 s timeout or incomplete run, `-` = not run yet
 
 On this panel, no. The strategies that ran out of memory at 6 GB do not start winning at 32 GB; they turn their out-of-memory failures into timeouts instead. `SC` and `CCL` time out on every panel case here, the same outcome as their 6 GB OOMs with a different failure mode. Walnut's `CCLS` (and the `BRZ-CCLS` pair) is the strategy that answers, exactly as at 6 GB, and the extra RAM does not turn a Walnut loss into a Walnut win on any case that Peanut also answers.
 
-The rig's weaker single-thread clock (i9-14900 vs the Mac's M-series) shows up in the wall times rather than the RAM: several Walnut `CCLS` figures are slower here than the Mac's 6 GB numbers, the opposite of what more memory would buy. So the extra memory is not translating into a speedup; it only removes the OOM as a distinct failure mode.
+The test machine's weaker single-thread clock (i9-14900 vs the Mac's M-series) shows up in the wall times rather than the RAM: several Walnut `CCLS` figures are slower here than the Mac's 6 GB numbers, the opposite of what more memory would buy. So the extra memory is not translating into a speedup; it only removes the OOM as a distinct failure mode.
 
 Peanut is memory-ceiling-independent on this panel. Every default vs `AM_SIMSUB=1` pair produced identical state counts and near-identical peak MB at 32 GB, matching the 6 GB numbers in `bench/SPEED-ROUND6.md`: Peanut was never OOM-bound on these cases at 6 GB either, so the 32 GB ceiling changes nothing on the Peanut side. `AM_SIMSUB=1` does not materially move `tail-c` (the case it was built for) at 32 GB any more than at 6 GB.
 
@@ -94,7 +94,7 @@ strategy: the `447 s` head-to-head figure is Peanut's direct `let FE` constructi
 (`AM_AUTOLEARN=0`), not `learnfe`. As of 2026-08-20 a plain `let FE(i,j,l) A t. t<l =>
 T[i+t]=T[j+t]` no longer takes that path by default: it auto-detects the shape and hands
 off to the `learnfe` guess-and-verify path (`AM_AUTOLEARN`, default on; `docs/LEARNFE.md`
-§10), which answers `tail-c` in ~16 s at ~230 MB — faster than Walnut `CCLS`'s 28.5 s and,
+§10), which answers `tail-c` in ~16 s at ~230 MB, faster than Walnut `CCLS`'s 28.5 s and,
 unlike the direct construction, well within the default 2048 MB budget. So **`tail-c` is a
 Peanut win by default**; it is a Peanut loss only if you force the direct construction with
 `AM_AUTOLEARN=0`. The honest note stands: the winning path is the learn construction

@@ -1,4 +1,4 @@
-# The symbolic (BDD-backed, MONA-style) strategy — what it is and where it pays
+# The symbolic (BDD-backed, MONA-style) strategy: what it is and where it pays
 
 > **Measured with the pre-2026-08-19 defaults.** The flags named here are no longer
 > all opt-in: `AM_PAR` defaults to `min(8, cores-2)` and `AM_ANTICHAIN` defaults to on.
@@ -15,7 +15,7 @@ before this file existed.
 `Dfa::exists` projects one track away and determinizes the resulting NFA. The explicit
 construction enumerates, for every subset and every one of the `k^tracks` letters, the
 union of the members' targets; the cost of a subset is `alpha * |subset| * k` set
-operations, and `alpha` grows exponentially in the number of variables — a
+operations, and `alpha` grows exponentially in the number of variables: a
 five-variable formula over base 4 already has 1024 letters, most of which behave
 identically.
 
@@ -41,13 +41,13 @@ Rows are built lazily (a source state whose row is never needed is never expande
 the whole pass is capped: at `AM_CAP0` subsets (50 000 by default, the same cap the
 explicit ladder uses for its first forward attempt) and at `AM_BDD_NODES` diagram nodes.
 On a cap the function returns `None` and `Dfa::exists` falls through to the existing
-ladder — the symbolic pass is a *first rung*, not a replacement.
+ladder: the symbolic pass is a *first rung*, not a replacement.
 
 `AM_STRATEGY=auto` puts one more rung in front: a **probe**, a short explicit forward
 subset construction (the same `Nfa::determinize_capped` the ladder uses) whose cap is
 scaled as `200_000/alpha` so it never does more than ~200k subset-by-letter cells of
 work. If the probe finishes, that is the answer and no diagram is ever built; only when
-it overflows — i.e. only on the expensive projections — does the symbolic pass run. That
+it overflows (i.e. only on the expensive projections) does the symbolic pass run. That
 is what keeps `auto` from paying the diagram's constant factor on the hundreds of trivial
 projections a formula compiles through.
 
@@ -69,14 +69,14 @@ AM_BDD_DEBUG=1             one stderr line per projection
 
 ## Method
 
-`bench/bdd_bench.py` runs a fixed case list through **one binary** three times — no
-flags (the explicit ladder), `AM_STRATEGY=bdd`, `AM_STRATEGY=auto` — back to back per
+`bench/bdd_bench.py` runs a fixed case list through **one binary** three times: no
+flags (the explicit ladder), `AM_STRATEGY=bdd`, `AM_STRATEGY=auto`, back to back per
 case, so a machine that is busy with other jobs costs all three configurations the same.
 Recorded per case: the engine's own `ms=` (summed over the predicates the case builds;
 the wall clock also contains `explore/engine.py`'s RAM-admission wait, which on a loaded
 machine dominates and is not the engine's time), the engine's own `mem` peak in MB, the
 minimal state count of every predicate, and a **canonical fingerprint** of every exported
-automaton — a breadth-first relabelling from state 0 taking letters in index order, which
+automaton: a breadth-first relabelling from state 0 taking letters in index order, which
 is a canonical form for a minimal DFA. Equal fingerprints therefore mean "same language",
 not merely "same number of states".
 
@@ -100,7 +100,7 @@ ceiling.
 **75/75 cases: identical minimal state counts and identical canonical automata across all
 three configurations.** Not one disagreement, in either digit order.
 
-### Fuzz battery — `tools/fuzz_bdd.py`
+### Fuzz battery: `tools/fuzz_bdd.py`
 
     python3 tools/fuzz_bdd.py 8          # writes results/fuzz_bdd.json
 
@@ -119,7 +119,7 @@ orders = 56 more, so **1156 jobs**. Each job is run under four engines:
 
 4624 engine runs. **1153 jobs were answered by all four: identical TRUE/FALSE verdict and
 identical minimal state count in every one.** The three unanswered jobs are the 150 s
-timeout hitting one heavy `border` instance and one `single5/lsd` FE (30 638 states) —
+timeout hitting one heavy `border` instance and one `single5/lsd` FE (30 638 states):
 resource exhaustion, not disagreement; the only row flagged is one where the *default*
 path timed out and all three of `ref`/`bdd`/`auto` answered TRUE.
 
@@ -233,8 +233,8 @@ mismatches: 0 of 75
 
 * **Large product alphabets with a forward construction that is expensive but bounded.**
   The clearest case is Khodier's `FE2` reformulation
-  `A u,v. (u>=i & u<i+n & u+j=v+i) => T[u]=T[v]` — five variables, so `k^5` letters
-  before projection — on a base-3 sequence: `FE2/prism-d` **4.09 s / 1105 MB -> 0.23 s /
+  `A u,v. (u>=i & u<i+n & u+j=v+i) => T[u]=T[v]` (five variables, so `k^5` letters
+  before projection), on a base-3 sequence: `FE2/prism-d` **4.09 s / 1105 MB -> 0.23 s /
   37 MB, 18x faster and 30x smaller**, same 82-state answer. `FE2/paperfolding` 8.5x,
   `FE2/mephisto` 6.7x, `FE2/thue-morse` 3.0x, `FE2/cantor` 2.3x, `FE2/prism-a` 2.2x.
 * **The Peltomaki `extRS2` stack** (`factorEq` -> `isRS` -> `extRS2` -> `E n`) on a base-3
@@ -273,5 +273,5 @@ behaviours, and there is nothing to compress.
 
 `AM_STRATEGY=auto` is the setting worth having: it is within noise of the default
 everywhere it does not help, keeps the 18x/30x FE2 win and the 2x base-3 wins, and needs
-no per-query choice. It stays **off by default** until someone decides otherwise —
+no per-query choice. It stays **off by default** until someone decides otherwise:
 this note is the evidence, not the decision.
