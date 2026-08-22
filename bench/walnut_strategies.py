@@ -38,7 +38,7 @@ Run:
 import os, sys, json, subprocess, time, re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-ROOT = "/Users/andrew/maths"
+ROOT = __import__("os").path.dirname(__import__("os").path.dirname(__import__("os").path.abspath(__file__)))
 W = os.path.join(ROOT, "walnut7")
 JAVA = "/opt/homebrew/opt/openjdk/bin/java"
 TIMEOUT = 900  # 15 min, same ceiling as the original benchmarks

@@ -16,10 +16,10 @@ network. It prints something like
 ```
   Peanut
   local   http://127.0.0.1:7373
-  LAN     http://192.168.1.24:7373
+  LAN     http://<your-lan-ip>:7373
   SECURITY: bound to the network -- anyone who can reach this host can
             POST /api/run and execute engine scripts. Trusted LANs only.
-  engine  /Users/andrew/maths/engine/target/release/peanut   budget 1536 MB/job
+  engine  .../engine/target/release/peanut   budget 1536 MB/job
 ```
 
 Without `--lan` only `127.0.0.1` is printed. Build the engine first if it is missing:

@@ -10,7 +10,7 @@ Run:
 import os, sys, json, subprocess, time, re, shutil
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "explore"))
 import engine
-ROOT="/Users/andrew/maths"; os.chdir(ROOT)
+ROOT = __import__("os").path.dirname(__import__("os").path.dirname(__import__("os").path.abspath(__file__))); os.chdir(ROOT)
 W=os.path.join(ROOT,"walnut7"); JAVA="/opt/homebrew/opt/openjdk/bin/java"
 def parse(d):
     p=d.split(); k=int(p[2]); m=int(p[3]); w=p[5:5+m]; c=p[5+m]; return k,m,w,c

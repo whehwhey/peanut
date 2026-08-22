@@ -542,11 +542,11 @@ results against real Walnut: `docs/WALNUT-COMPAT.md`.
 
 ```
 > walnut
-OK walnut on root=/Users/andrew/maths/walnut7
+OK walnut on root=/path/to/walnut
 > eval sq "?msd_fib Ei,n (n>=1) & (Aj (j<n) => F[i+j]=F[i+j+n])":
 WOK eval sq states=1 vars=[] verdict=TRUE ms=41
 > walnut off
-OK walnut off root=/Users/andrew/maths/walnut7
+OK walnut off root=/path/to/walnut
 ```
 
 ## Formula grammar

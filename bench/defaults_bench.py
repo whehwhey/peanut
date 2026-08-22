@@ -23,7 +23,7 @@ Run:
 """
 import json, os, re, sys, time
 
-ROOT = "/Users/andrew/maths"
+ROOT = __import__("os").path.dirname(__import__("os").path.dirname(__import__("os").path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "explore"))
 import engine                                              # noqa: E402
 

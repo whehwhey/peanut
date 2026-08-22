@@ -85,7 +85,7 @@ claude mcp add peanut -- /ABS/PATH/.venv/bin/python /ABS/PATH/mcp/server.py
 For example, from this repo on the author's machine:
 
 ```
-claude mcp add peanut -- /Users/andrew/maths/.venv/bin/python /Users/andrew/maths/mcp/server.py
+claude mcp add peanut -- /path/to/venv/bin/python /path/to/peanut/mcp/server.py
 ```
 
 Verify it connected:
