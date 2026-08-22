@@ -4,6 +4,7 @@ title: "Peanut: a decision procedure for automatic sequences"
 authors:
   - family-names: Hingston
     given-names: Andrew
+    orcid: "https://orcid.org/0009-0000-5456-706X"
 repository-code: "https://github.com/hingstona/peanut"
 url: "https://github.com/hingstona/peanut"
 abstract: >-
