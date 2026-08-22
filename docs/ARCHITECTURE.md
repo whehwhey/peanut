@@ -1,7 +1,7 @@
 # ARCHITECTURE
 
 Peanut's engine is a small Rust crate (`engine/`, package name `automatheus`,
-binary `peanut`, edition 2024). Its one dependency is `rayon`, used only by
+binary `peanut`, edition 2021, rustc >= 1.75). Its one dependency is `rayon`, used only by
 `det_par.rs`; since 2026-08-19 the **default** is `AM_PAR = min(8, cores-2)`, so an
 ordinary run does enter a thread pool (lazily - the pool is built by the first
 subset construction that needs it, and `AM_PAR=1` restores the single-threaded
