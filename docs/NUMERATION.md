@@ -117,6 +117,10 @@ Shipped in `engine/numeration/`, generated **and machine-checked** by
 | `trib` | 3 states, no factor `111` | 43 states | 1,2,4,7,13,24,… |
 | `pell` | 2 states, a `2` must be followed by `0` | 12 states | 1,2,5,12,29,… |
 
+State counts in this table exclude the dead (sink) state; the `numsys` command
+reports them **including** the dead state, so its output is one higher per
+automaton (e.g. `fib` validity shows 3 there, addition 17). Both are correct.
+
 Search path for `numsys NAME`: `$AM_NUMSYS_DIR`, `engine/numeration/` (relative to
 the binary and to the cwd), then `$AM_WALNUT_BASES`; within each, `NAME.txt` then
 `msd_NAME.txt`, and likewise `NAME_addition.txt` / `NAME_less_than.txt`.
