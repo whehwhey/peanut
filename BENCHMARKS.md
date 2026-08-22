@@ -155,7 +155,7 @@ for the correction.
 # Appendix: the original default-strategy tables (superseded by the section above)
 
 
-Reproducible with `bench/walnut_fe.py` (FE panel) and the numeration harness described in docs/NUMERATION.md. Both tools at 6 GB, same machine (Apple Silicon, 26 GB). Peanut counts the dead state, so Peanut = Walnut + 1 whenever both finish: an independent cross-check of every state count.
+Reproducible with `bench/walnut_fe.py` (FE panel) and the numeration harness described in docs/NUMERATION.md. Both tools at 6 GB, same machine (Apple Silicon, 24 GB). Peanut counts the dead state, so Peanut = Walnut + 1 whenever both finish: an independent cross-check of every state count.
 
 ## Equality of factors, base k
 

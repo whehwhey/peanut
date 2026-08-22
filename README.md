@@ -64,7 +64,8 @@ Three runnable examples: `examples/`. Benchmark harness vs Walnut: `bench/README
 ## GUI
 
 ```
-python3 gui/serve.py            # http://0.0.0.0:7373, prints the LAN URL
+python3 gui/serve.py            # http://127.0.0.1:7373 (loopback only)
+python3 gui/serve.py --lan      # http://0.0.0.0:7373, reachable on your LAN
 ```
 
 Standard library only, no build step. See `gui/README.md`.

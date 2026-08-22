@@ -1,6 +1,6 @@
 # Peanut GUI
 
-A local web front end for the engine. Standard library only — no build step, no CDN, no
+A local web front end for the engine. Standard library only - no build step, no CDN, no
 dependencies to install.
 
 ```
@@ -32,7 +32,7 @@ Without `--lan` only `127.0.0.1` is printed. Build the engine first if it is mis
 | Sequence | the tape of T, pan/zoom/click; a position's base-`k` digits and its path through the DFAO; find every occurrence of the factor starting there | `seq`, `enum` |
 | Automaton | the DFAO, and the automaton of any predicate you have built, laid out in BFS layers with hover detail | `export` |
 | Playground | a script editor with a library of examples over 26 sequences; verdicts, witnesses, states, ms, peak MB | `?`, `let`, `witness`, `enum`, `dfa`, `finite`, `learnfe` |
-| FE heatmap | FE(i, j, L) as a grid walked directly through the DFAO — no automaton involved | `fe_map` |
+| FE heatmap | FE(i, j, L) as a grid walked directly through the DFAO - no automaton involved | `fe_map` |
 | Shapes | three pictures of the sequence: a 2-variable predicate over the (i, j) plane, the sequence as a turtle path, the sequence folded into a square | `pic`, `seq` |
 | Morphism sandbox | edit a k-uniform morphism and coding, watch the fixed point regrow, roll a random admissible one, run the battery | `def`, then the battery |
 | Live compute | the phase the engine is in (running / complete / skipped), subsets built, states, memory against the budget, elapsed, a stop button while it runs and a verdict chip with `Done in X s` when it finishes | any job, with `AM_PROGRESS=1` |
@@ -54,20 +54,20 @@ without more cells), tap a cell to read `(i, j)`, its base-`k` digits and the va
 `T[i+j]` in output colours, `FE(i, j, L)` at a fixed length (both directly and via
 `learnfe`), `pow(i+j)`, and two carry-free pictures:
 
-- **Sierpiński** — `C(i+j, i)` is odd exactly when binary addition of `i` and `j` carries
+- **Sierpiński** - `C(i+j, i)` is odd exactly when binary addition of `i` and `j` carries
   nowhere (Kummer). "No carries" is not directly sayable in this logic, so the shape
   brings its own sequence, `T[n] = s₂(n) mod 10`, and says
   `s₂(i) + s₂(j) ≡ s₂(i+j)` as the 100-term disjunction over the possible letter pairs.
   Sound while the carry count stays below 10, i.e. for `i, j < 512`.
-- **Pascal mod 3** — the same construction in base 3 over `s₃(n) mod 7`, valid for
+- **Pascal mod 3** - the same construction in base 3 over `s₃(n) mod 7`, valid for
   `i, j < 729`.
 
 Or pick *custom* and write your own body for `P(i, j)`, with optional setup lines
 (`let`, `learnfe`) run before it in the same session.
 
 **Turtle** walks the sequence: one step forward per symbol, then a turn by that symbol's
-angle. Presets are angles, not sequences — ±90° (the paperfolding sequence draws the
-dragon curve), 60°/−120° (Koch-like on Thue–Morse), ±120°, ±29° — so any sequence can be
+angle. Presets are angles, not sequences - ±90° (the paperfolding sequence draws the
+dragon curve), 60°/−120° (Koch-like on Thue–Morse), ±120°, ±29° - so any sequence can be
 put through any rule. Draw animates with a speed control and fits the finished path to
 the canvas; `prefers-reduced-motion` draws it in one frame.
 
@@ -76,8 +76,8 @@ symbol, which is the quickest way to see a sequence's self-similarity.
 
 ## Safety
 
-Every engine process is launched through `explore/engine.py` — the same runner the sweeps
-use — so the GUI is inside all three guards from `docs/GUARD.md`: admission control on
+Every engine process is launched through `explore/engine.py` - the same runner the sweeps
+use - so the GUI is inside all three guards from `docs/GUARD.md`: admission control on
 free RAM before a job starts, an RSS watchdog, `AM_MEM_MB` inside the engine, and the
 system LaunchAgent above everything. The per-job budget and timeout are set in the
 playground; there is no path in the GUI that runs an engine outside the runner.
@@ -124,19 +124,19 @@ End to end, in a real browser, headless:
   --dump-dom 'http://localhost:7373/?selftest=1' | grep -A20 'selftest-out'
 ```
 
-`gui/static/selftest.js` drives the real page — library, tape, position card, DFAO export,
+`gui/static/selftest.js` drives the real page - library, tape, position card, DFAO export,
 an overlap-free query, a witness, an `enum` paint, the FE grid, a random morphism, a
 streaming `let FE` job and a `learnfe` job (checking the live panel's DONE state and which
 phases ran, were skipped, or are still pending), the predicate automaton, the three Shapes
 pictures against independently computed ground truth (`T[i]=T[j]` against the tape,
 Sierpiński against `i & j == 0`, the turtle's Thue–Morse bounding box), and the responsive
-layout at 360 px across every view — and prints one PASS/FAIL line each. Add `&show=1` to
+layout at 360 px across every view - and prints one PASS/FAIL line each. Add `&show=1` to
 see the report on screen in a screenshot, `&end=<view>` to leave the app on a particular
 view (`&end=shapes/picture` picks a Shapes tab too).
 
 ## Design
 
-`gui/DESIGN.md` — every colour, typeface and measurement is derived from
+`gui/DESIGN.md` - every colour, typeface and measurement is derived from
 `PEANUT_DESIGN_SEED = 653658211`, with the draw order written out.
 
 ---

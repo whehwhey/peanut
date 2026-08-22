@@ -3,7 +3,7 @@
 Peanut's engine is a small Rust crate (`engine/`, package name `automatheus`,
 binary `peanut`, edition 2024). Its one dependency is `rayon`, used only by
 `det_par.rs`; since 2026-08-19 the **default** is `AM_PAR = min(8, cores-2)`, so an
-ordinary run does enter a thread pool (lazily — the pool is built by the first
+ordinary run does enter a thread pool (lazily - the pool is built by the first
 subset construction that needs it, and `AM_PAR=1` restores the single-threaded
 reference path). Modules:
 
@@ -50,7 +50,7 @@ formula text  --lex/parse-->  Ast            (logic.rs)
 
 `let`/`learnfe` additionally register `(params, Dfa)` in `Defs` (a
 `HashMap<String, (Vec<String>, Dfa)>`), making the automaton callable as
-`$NAME(...)` from later formulas — `Ast::Call` binds each argument through a fresh
+`$NAME(...)` from later formulas - `Ast::Call` binds each argument through a fresh
 existentially-quantified variable and inlines the stored `Dfa` (renamed to the
 fresh names) via `Dfa::and` + `Dfa::exists`.
 
@@ -61,7 +61,7 @@ states (one per letter of the morphism alphabet), transition `t(s, d) = w_s[d]`,
 output via `coding`. `Dfao::at(n)` evaluates `T[n]` by reading `n`'s base-k digits
 (msd or lsd per the active `dfa::is_lsd()` flag) from the start state.
 `Dfao::pred_letter(x, a)` / `pred_eq(x, y)` build the primitive one/two-variable
-automata `T[x]=a` and `T[x]=T[y]` that `logic.rs` conjoins into larger formulas —
+automata `T[x]=a` and `T[x]=T[y]` that `logic.rs` conjoins into larger formulas -
 this is where the sequence enters the logic at all; every other automaton in the
 system is pure Presburger arithmetic over `<N, +, <, V_k>`.
 
@@ -71,10 +71,10 @@ system is pure Presburger arithmetic over `<N, +, <, V_k>`.
 `Ast::SeqLetter`/`Ast::SeqSeq` variants bottom out in `base.rs`/`Dfao` primitives;
 `And`/`Or`/`Not`/`Imp`/`Iff` are automaton `product`/`complement`; `Exists`/`Forall`
 are `Dfa::exists` (`Forall` is `complement().exists(v).complement()`, i.e. De
-Morgan — there is no separate universal-projection algorithm). Every operator
+Morgan - there is no separate universal-projection algorithm). Every operator
 returns a **minimal, trimmed** `Dfa`, so intermediate blowup can only ever come
 from the two operations that build new states: `product` (bounded, `|A|*|B|`) and
-`exists` (subset construction, unbounded in principle — this is the whole subject
+`exists` (subset construction, unbounded in principle - this is the whole subject
 of `docs/TARGET1.md`).
 
 Linear arithmetic terms (`Lin`, a constant plus a sorted map of variable
@@ -87,11 +87,11 @@ working alphabet (each extra fresh variable multiplies alphabet size by `k`).
 
 Global flag (`dfa::set_lsd`/`is_lsd`), not per-automaton. It changes three things:
 - `Dfao::at` reads digits msd-first or lsd-first.
-- `Dfa::zero_closure` — after every `exists`, the automaton must be re-closed under
+- `Dfa::zero_closure` - after every `exists`, the automaton must be re-closed under
   the padding convention. msd padding is *leading* zeros, so closure needs a real
   subset construction (states reachable by prepending zeros get merged into their
   target's acceptance). lsd padding is *trailing* zeros, so closure only rewrites
-  the accepting set (`accept[q] |= accept[t(q,0)]`, fixpoint) — no determinization
+  the accepting set (`accept[q] |= accept[t(q,0)]`, fixpoint) - no determinization
   at all. This asymmetry is why lsd is sometimes dramatically cheaper for the same
   formula (`docs/TARGET1.md` Finding 1: 45/47 msd memory-budget failures on the
   random sweep finish in lsd with modest size).
@@ -122,7 +122,7 @@ forward (Rabin–Scott) subset construction is what blows up (Khodier's Open Pro
 Every stage that succeeds is followed by `zero_closure().minimize()`. The
 motivating measurement (`docs/TARGET1.md`, "Construction (aspect B)"): a *small*
 forward cap that fails fast into Brzozowski beats a large forward cap by orders of
-magnitude — e.g. an exact-count-3 predicate: 482 states in 0.0 s via the ladder vs.
+magnitude - e.g. an exact-count-3 predicate: 482 states in 0.0 s via the ladder vs.
 6 GB exhausted by a straight 3M-subset forward attempt. `AM_DEBUG2=1` traces which
 branch fires and the state counts at each step.
 
@@ -134,10 +134,10 @@ and is available as a building block outside `exists`.
 
 Four algorithms landed behind default-off env flags in the 2026-08-18/19 speed
 round (`det_par.rs`, `symbolic.rs`, `antichain.rs`, the generalised learner in
-`learn.rs`). `bench/SPEED-ROUND6.md` gated all four for correctness — 1120
+`learn.rs`). `bench/SPEED-ROUND6.md` gated all four for correctness - 1120
 config-vs-default fuzz-diff pairs, 280 against the pre-round binary, 100 against
 Walnut, 57 `learn`-vs-`let` panel checks, zero verdict or state-count
-disagreements — and its "Final defaults" section then measured each one with the
+disagreements - and its "Final defaults" section then measured each one with the
 new defaults in place. What the engine does with **no environment variables set**:
 
 ```
@@ -186,7 +186,7 @@ Why those three settings and not the other two:
 `Dfa::minimize` (`dfa.rs`) is textbook: trim to states reachable from the start
 state via BFS renumbering, then Moore partition refinement to merge Nerode-
 equivalent states. Run after every operation that can introduce redundant states
-(product, determinization, zero-closure) — automata are kept minimal throughout
+(product, determinization, zero-closure) - automata are kept minimal throughout
 compilation, not just at the end, so a mid-formula state count in an `AM_DEBUG`
 trace is a true lower bound on that subformula's language.
 
@@ -208,4 +208,4 @@ innermost and is what actually stops a single process; `explore/engine.py` is
 admission control plus a watchdog around child processes; `explore/memguard.sh` is
 a system-level LaunchAgent backstop that kills any `peanut`/`automatheus` process
 regardless of how it was launched. None of `dfa.rs`/`logic.rs`/`learn.rs` know
-about any of this — they just allocate, and the allocator enforces the ceiling.
+about any of this - they just allocate, and the allocator enforces the ceiling.

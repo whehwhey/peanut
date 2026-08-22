@@ -1,4 +1,4 @@
-# PYTHON-API — `explore/engine.py`
+# PYTHON-API - `explore/engine.py`
 
 `explore/engine.py` is the **only** sanctioned way to launch the Peanut engine
 (`engine/target/release/peanut`) from Python. It wraps the raw subprocess in three
@@ -18,15 +18,15 @@ results = engine.pool(jobs, worker_fn)      # resource-aware parallel map
 
 ## `run(src, timeout=60, mem_mb=None, cap=None, env=None) -> Result`
 
-Runs one engine session on `src` — a full stdin script. `quit` is appended
+Runs one engine session on `src` - a full stdin script. `quit` is appended
 automatically if the script doesn't already end with it.
 
-- `timeout` — wall-clock seconds before the child is killed and `Result.timed_out`
+- `timeout` - wall-clock seconds before the child is killed and `Result.timed_out`
   is set.
-- `mem_mb` — per-process `AM_MEM_MB` override (defaults to the module-level
+- `mem_mb` - per-process `AM_MEM_MB` override (defaults to the module-level
   `MEM_MB`, itself `AM_MEM_MB` env or 1536).
-- `cap` — sets `AM_CAP` for this run.
-- `env` — dict merged into the child's environment last (overrides `mem_mb`/`cap`
+- `cap` - sets `AM_CAP` for this run.
+- `env` - dict merged into the child's environment last (overrides `mem_mb`/`cap`
   if it sets the same keys).
 
 `run()` **never raises**. Timeouts, memory-budget exits (`rc == 3`), and watchdog
@@ -34,11 +34,11 @@ kills all come back as a normal `Result`, never an exception.
 
 Before launching, `run()` blocks in `_admit()` until free system RAM exceeds
 `AM_FLOOR_MB + mem_mb` *and* macOS kernel memory-pressure is `normal` (not
-`warn`/`critical`) — admission control, the second of the three guard layers. A
+`warn`/`critical`) - admission control, the second of the three guard layers. A
 background watchdog thread checks every running child once a second and kills
 anything over `1.5 * mem_mb + 256` MB RSS, or (under critical system pressure) the
 single largest running child. All children are registered for cleanup on process
-exit and on `SIGINT`/`SIGTERM` — no orphaned engine processes survive the Python
+exit and on `SIGINT`/`SIGTERM` - no orphaned engine processes survive the Python
 process.
 
 ### `Result`

@@ -34,9 +34,9 @@ Every tool except `peanut_decide` takes a `sequence_def`: one or more engine
 commands that establish the current sequence. Inside formulas the sequence is
 always named `T`. Examples:
 
-- `def T 2 2 0 01 10 01` — Thue-Morse (base 2, the fixed point of `0->01, 1->10`).
-- `def T 2 2 0 01 00 01` — the period-doubling sequence.
-- `numsys fib\ndfao F 2 0:0,1 1:0,-` — the Fibonacci word (Zeckendorf digits).
+- `def T 2 2 0 01 10 01` - Thue-Morse (base 2, the fixed point of `0->01, 1->10`).
+- `def T 2 2 0 01 00 01` - the period-doubling sequence.
+- `numsys fib\ndfao F 2 0:0,1 1:0,-` - the Fibonacci word (Zeckendorf digits).
 
 To export or reason about a derived predicate, include its `let`/`learnfe` in the
 `sequence_def`, e.g. `def T 2 2 0 01 10 01\nlet EQ(i,j) T[i]=T[j]`.

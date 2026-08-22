@@ -1,4 +1,4 @@
-# NUMERATION — addable numeration systems (Fibonacci, Tribonacci, Pell, ...)
+# NUMERATION - addable numeration systems (Fibonacci, Tribonacci, Pell, ...)
 
 Peanut decides first-order sentences over `<N, +, <, T>` where positions are written
 in a **numeration system**, not necessarily base `k`. Base `k` stays the built-in
@@ -40,7 +40,7 @@ after every boolean operation (`AutomatonLogicalOps.totalizeCrossProduct`, i.e. 
 
 Two details of the text format are easy to get wrong and both bite:
 
-* the **initial state is the first state declared in the file, not state 0** —
+* the **initial state is the first state declared in the file, not state 0** -
   `msd_trib_addition.txt` opens with `78 1` (`AutomatonReader.java`, `q0 = pair[0]`
   on the first declaration);
 * a missing transition means *dead*, so the automata are partial.
@@ -56,7 +56,7 @@ supplied as files rather than derived.
 
 **A numeration system is** `{ name, digit alphabet {0..D-1}, validity DFA (msd,
 leading zeros allowed), addition DFA over 3 tracks, comparison DFA (loaded, else msd
-lexicographic) }`, each kept in *both* digit orders — the lsd forms are the msd forms
+lexicographic) }`, each kept in *both* digit orders - the lsd forms are the msd forms
 put through `Dfa::reverse_determinize`, so `mode lsd` costs nothing extra and remains
 the independent oracle it is for base `k`.
 
@@ -72,8 +72,8 @@ ordering of the validity language. Then
   1,2,4,7,13,… for Tribonacci, 1,2,5,12,29,… for Pell) as a *consequence*.
 
 This is the abstract-numeration-system definition (Lecomte–Rigo). It costs no
-per-system code, and it is what lets `seq`, `enum`, `witness`, `pic`, `fe_map` and —
-crucially — the `learnfe` LCP oracle convert index ↔ digits in a system whose weights
+per-system code, and it is what lets `seq`, `enum`, `witness`, `pic`, `fe_map` and -
+crucially - the `learnfe` LCP oracle convert index ↔ digits in a system whose weights
 nobody typed in. The oracle's counter steps `n -> n+1` by `succ`, amortised O(1), so
 `learnfe` is as cheap on Zeckendorf as on base 2.
 
@@ -81,12 +81,12 @@ nobody typed in. The oracle's counter steps `n -> n+1` by `succ`, amortised O(1)
 with `0*`: `O(|rep(c)|)` states, one automaton, no adder recursion and no
 quantification (contrast Walnut's `constant()` above).
 
-**Validity is restricted exactly where it can matter.** Every leaf — adder,
+**Validity is restricted exactly where it can matter.** Every leaf - adder,
 comparison, equality, constant, `T[x]=a`, `T[x]=T[y]`, and the cylindrification
-`Dfa::constant(..., true)` — is conjoined with validity on each of its tracks. Given
+`Dfa::constant(..., true)` - is conjoined with validity on each of its tracks. Given
 that, an invalid word is rejected by *both* operands of every product, so the product
 accepts it iff `op(false,false)` does. Hence `dfa.rs` re-restricts only after
-`complement()` and after a product whose `op(false,false)` is true — that is, after
+`complement()` and after a product whose `op(false,false)` is true - that is, after
 `=>` and `<=>`, but never after `&` or `|`, where Walnut restricts unconditionally.
 Existential projection preserves the restriction on the surviving tracks, and
 `zero_closure` preserves it because `delta(q0, 0) = q0` is checked at load time.
@@ -155,8 +155,8 @@ is the pruning's soundness check.
 `explore/gen_numsys.py` (run it; it refuses to write a file that fails):
 
 * `value(rep(n)) == n` and `rep(n) ==` the greedy expansion, for all `n < 2*10^5`
-  (and again, cheaply, at every `numsys` load — see the self-check above);
-* the valid words of each length, in lexicographic order, have values `0,1,2,…` —
+  (and again, cheaply, at every `numsys` load - see the self-check above);
+* the valid words of each length, in lexicographic order, have values `0,1,2,…` -
   i.e. radix order **is** numeric order, which is what makes the lexicographic
   comparison automaton correct;
 * the adder accepts `(x,y,x+y)` and rejects `(x,y,z)` for `z != x+y`, exhaustively
@@ -205,10 +205,10 @@ all `i,j < 40`, `l < 20`.
 
 1. Write (or copy from Walnut) `NAME.txt` and `NAME_addition.txt` into
    `engine/numeration/`.
-2. `numsys NAME` — the loader checks `delta(q0,0) = q0`, that the empty word is
+2. `numsys NAME` - the loader checks `delta(q0,0) = q0`, that the empty word is
    accepted (the representation of 0), that all tracks share one alphabet
    `{0..D-1}`, and that the adder has three tracks.
 3. Load a sequence with `dfao` (see `docs/COMMANDS.md`), e.g. from
    `explore/morphic_to_dfao.py`.
-4. Everything else — `?`, `let`, `witness`, `enum`, `finite`, `learnfe`, `pic`,
-   `export`, both digit orders — works unchanged.
+4. Everything else - `?`, `let`, `witness`, `enum`, `finite`, `learnfe`, `pic`,
+   `export`, both digit orders - works unchanged.

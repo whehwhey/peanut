@@ -1,4 +1,4 @@
-# LEARNFE — building the equality-of-factors automaton by guess-and-verify
+# LEARNFE - building the equality-of-factors automaton by guess-and-verify
 
 `learnfe NAME` constructs the minimal DFA for
 
@@ -18,7 +18,7 @@ Two new commands:
 
 | command | meaning |
 |---|---|
-| `witness <formula>` | one satisfying assignment of the free variables — the SHORTEST accepted word — or `NONE`. Closed formulas degenerate to `TRUE`/`FALSE`. |
+| `witness <formula>` | one satisfying assignment of the free variables - the SHORTEST accepted word - or `NONE`. Closed formulas degenerate to `TRUE`/`FALSE`. |
 | `learnfe NAME` | build `FE(i,j,l)` as above and bind it to `NAME` with parameters `(i,j,l)`. |
 
 ---
@@ -61,7 +61,7 @@ The disjunct `l = 0` of (R) is false, so
 
 Every `l` is reached, so `H = FE`.  ∎
 
-FE itself satisfies (R) — the same "split off `t=0`" computation read backwards — so
+FE itself satisfies (R) - the same "split off `t=0`" computation read backwards - so
 (R) has **exactly one** solution.
 
 **Consequence (why this is called self-verifying).**  Any candidate that passes the (R)
@@ -116,7 +116,7 @@ memoised per unordered pair `(i,j)` together with the cap they were computed und
 
 A hard cap `AM_LEARN_LCP` (default 2^22 steps) bounds the work per pair; a pair that
 survives the cap is treated as `LCP = infinity`.  That is genuinely wrong for
-eventually periodic `T` — and harmless, by §2.  The count of such answers is reported
+eventually periodic `T` - and harmless, by §2.  The count of such answers is reported
 as `capped_lcp=` when nonzero (tail-c: 42 of 6.0M queries; the result still verified).
 
 ## 4. Learner
@@ -135,15 +135,15 @@ Kearns–Vazirani discrimination tree over the `k^3`-letter track alphabet.
   differ, so some adjacent pair differs, found in `O(log |w|)` queries.  Each
   counterexample adds exactly one state, so the tree never exceeds the minimal DFA.
 * **Incremental hypothesis.**  Splitting a leaf re-sifts only the transitions that
-  pointed at it — one query each, against the new suffix — plus `k^3` sifts for the new
+  pointed at it - one query each, against the new suffix - plus `k^3` sifts for the new
   state.  Rebuilding the whole hypothesis after every split (textbook KV) would cost
   `O(N^2 · k^3 · depth)` queries; this costs `O(N · k^3 · depth)` in total.
 * **Cheap equivalence first.**  Equivalence queries build automata and are the expensive
   part, so before each one we run two pure-membership searches:
-  1. *boundary sampling* — random `(i,j)` (uniform, near-diagonal, digit-perturbed) with
+  1. *boundary sampling* - random `(i,j)` (uniform, near-diagonal, digit-perturbed) with
      `l` drawn from `{0, 1, LCP-1, LCP, LCP+1, random}`.  The language changes exactly at
      `l = LCP(i,j)`, so this is where counterexamples live;
-  2. *local probe* — errors cluster, so from every counterexample found we crawl a
+  2. *local probe* - errors cluster, so from every counterexample found we crawl a
      bounded neighbourhood (`l ± 3`, `(i±1, j±1)`, `(i/k, j/k)`) keeping every
      disagreement.  The neighbourhood is deliberately magnitude-preserving: enlarging
      `i,j,l` lengthens words, long words become long distinguishing suffixes, and those
@@ -158,7 +158,7 @@ Kearns–Vazirani discrimination tree over the `k^3`-letter track alphabet.
 ## 5. Memory
 
 Everything runs under the existing counting allocator (`AM_MEM_MB`, `engine/src/membudget.rs`).
-The learner's own footprint is negligible — the LCP memo plus `N·k^3` transitions — and
+The learner's own footprint is negligible - the LCP memo plus `N·k^3` transitions - and
 the peaks reported below are the verification automata.  Measured peaks: 50 MB
 (tail-c, 1382 states), 50 MB (single5, 1877 states), 312 MB (prism-1, only 467 states but
 over a 64-letter alphabet), 627 MB (single6, 3971 states).  Compare the 6144 MB budgets
@@ -195,7 +195,7 @@ inside the engine and returned `TRUE` in every row.
 | prism-1 (k=4, m=6) | 467 | 467 | true | 38594 | 17002 | 25 | 1693633 | 312 |
 | rudin-shapiro (**lsd**) | 99 | 99 | true | 2 | 324 | 3 | 181082 | 1 |
 
-The three targets named in the task — thue-morse 15, rudin-shapiro 68, prism-1 467 —
+The three targets named in the task - thue-morse 15, rudin-shapiro 68, prism-1 467 -
 and the singleton family 190 / 698 / 1877 / 3971 reproduce exactly.
 
 Independent check, not using the engine's own `let FE` and not using any automaton
@@ -214,7 +214,7 @@ sequence the direct construction did eventually manage, at 6 GB and 168 s.)
 
 These are the sequences on which `let FE` failed in **both** digit orders at a 6 GB
 budget and failed again under the small-cap Brzozowski retry (`results/blowup_residue.json`,
-`results/blowup_residue3.log`) — the "censored tail" of `docs/TARGET1.md`.  There is no
+`results/blowup_residue3.log`) - the "censored tail" of `docs/TARGET1.md`.  There is no
 `let FE` number to compare against; correctness rests on `learnfe`'s own recurrence
 check (§2), plus the pure-Python brute-force diffs in §6.1 for tail-b and tail-c.
 
@@ -226,17 +226,17 @@ budget on this machine", not as "impossible".
 |---|---|---|---|---|---|---|---|
 | tail-c | 2 | 6 | **1382** | 14.2 | 139 | 5992969 | 50 |
 | tail-b | 3 | 5 | **1000** | 25.7 | 61 | 3164860 | 179 |
-| c-3.5b | 3 | 5 | — | timeout 360 s | | | |
-| c-3.7a | 3 | 7 | — | timeout 360 s | | | |
-| c-3.7b | 3 | 7 | — | timeout 360 s | | | |
-| c-3.7c | 3 | 7 | — | timeout 360 s | | | |
+| c-3.5b | 3 | 5 | - | timeout 360 s | | | |
+| c-3.7a | 3 | 7 | - | timeout 360 s | | | |
+| c-3.7b | 3 | 7 | - | timeout 360 s | | | |
+| c-3.7c | 3 | 7 | - | timeout 360 s | | | |
 | c-3.7d | 3 | 7 | **1147** | 44.4 | 80 | 4602591 | 109 |
-| c-3.7e | 3 | 7 | — | timeout 360 s | | | |
-| c-3.7f | 3 | 7 | — | timeout 360 s | | | |
-| c-3.7g | 3 | 7 | — | timeout 360 s | | | |
+| c-3.7e | 3 | 7 | - | timeout 360 s | | | |
+| c-3.7f | 3 | 7 | - | timeout 360 s | | | |
+| c-3.7g | 3 | 7 | - | timeout 360 s | | | |
 | c-3.7h | 3 | 7 | **781** | 23.2 | 70 | 3846241 | 80 |
-| c-3.7i | 3 | 7 | — | timeout 360 s | | | |
-| c-3.7j | 3 | 7 | — | RSS watchdog at 4 GB | | | |
+| c-3.7i | 3 | 7 | - | timeout 360 s | | | |
+| c-3.7j | 3 | 7 | - | RSS watchdog at 4 GB | | | |
 
 Definitions, in the order above:
 
@@ -258,7 +258,7 @@ c-3.7j   def T 3 7 0 065 630 536 161 341 241 461 0011010
 
 
 **4 of 13 previously-uncomputable FE automata now have a value**, and it is a *verified*
-value.  The nine that remain are all k=3 — a 27-letter track alphabet, and k^6 = 729-letter
+value.  The nine that remain are all k=3 - a 27-letter track alphabet, and k^6 = 729-letter
 intermediates inside the equivalence check, so each equivalence query costs an order of
 magnitude more than at k=2.  c-3.7j died on the runner's 4 GB RSS watchdog at 198 s
 rather than on the clock.  Nothing here shows they are out of reach; only that they need
@@ -266,8 +266,8 @@ more than six minutes and 2.5 GB on a contended machine.
 
 ### 6.3 The learned automaton is a first-class predicate
 
-`learnfe` binds its result exactly like `let`, so tail-c — which had no FE automaton at
-all before — now answers questions instantly:
+`learnfe` binds its result exactly like `let`, so tail-c - which had no FE automaton at
+all before - now answers questions instantly:
 
     def T 2 6 0 05 23 44 42 51 10 000010
     learnfe G
@@ -280,7 +280,7 @@ all before — now answers questions instantly:
     INFINITE states=1
 
 So: the length-60 factor at position 0 recurs at position 192 (a shortest-word witness,
-i.e. one with the fewest base-2 digits — not necessarily the numerically smallest pair);
+i.e. one with the fewest base-2 digits - not necessarily the numerically smallest pair);
 no two occurrences of a common length-60 factor start within 3 of each other; and for
 every `i` there are infinitely many `j > i` sharing a length-200 factor.  Each answer
 took single-digit milliseconds on top of the 16 s construction.
@@ -304,8 +304,8 @@ took single-digit milliseconds on top of the 16 s construction.
 It moves aspect (B) of Open Problem 1 forward in the practical sense.  Every FE the
 direct construction can build, `learnfe` builds identically (17/17, each equality proved
 inside the engine).  Four sequences that the direct construction could not build at all
-at 6 GB in either digit order now have verified FE automata — tail-c 1382, tail-b 1000,
-c-3.7d 1147, c-3.7h 781 — at 50–180 MB and 14–45 s.  Because the construction is
+at 6 GB in either digit order now have verified FE automata - tail-c 1382, tail-b 1000,
+c-3.7d 1147, c-3.7h 781 - at 50–180 MB and 14–45 s.  Because the construction is
 verified rather than trusted, those sizes are exactly as sound as the direct ones: they
 are the minimal DFA of a language *proved* equal to FE by a recurrence with a unique
 solution.  Nine of the thirteen censored sequences remain open at the budget used here,
@@ -319,22 +319,22 @@ Two honest limits:
 * `learnfe` is not uniformly faster.  On easy inputs the direct construction wins by
   orders of magnitude (thue-morse: 0 ms vs 32 ms).  Its running time scales with the
   *answer* size (roughly `N` counterexamples, `N/13` equivalence queries), not with the
-  intermediate blowup — which is exactly why it wins where the direct method dies, and
+  intermediate blowup - which is exactly why it wins where the direct method dies, and
   loses where the direct method is fine.  A sensible driver runs `let FE` first with a
-  small cap and falls back to `learnfe` — which is exactly what auto-`learnfe` does (§10).
+  small cap and falls back to `learnfe` - which is exactly what auto-`learnfe` does (§10).
 * The membership oracle assumes `LCP = infinity` past its step cap.  This cannot make a
   reported automaton wrong (§2), but it can make the learner chase a non-regular target
   and stall; the engine detects the stall, raises the cap, and relearns.
 
 ## 9. Files
 
-* `engine/src/learn.rs` — oracle, discrimination-tree learner, verifier, driver
-* `engine/src/dfa.rs` — `bfs_tree`, `word_to`, `shortest_word` (witness extraction)
-* `engine/src/main.rs` — `witness` and `learnfe` commands
-* `engine/src/autolearn.rs` — auto-`learnfe` shape detector + cheap-ladder probe (§10)
-* `explore/learnfe_bench.py` — reproduces both tables (`panel` / `censored`)
-* `results/learnfe_panel.json` — agreement table, raw
-* `results/learnfe_censored.json` — censored-tail table, raw
+* `engine/src/learn.rs` - oracle, discrimination-tree learner, verifier, driver
+* `engine/src/dfa.rs` - `bfs_tree`, `word_to`, `shortest_word` (witness extraction)
+* `engine/src/main.rs` - `witness` and `learnfe` commands
+* `engine/src/autolearn.rs` - auto-`learnfe` shape detector + cheap-ladder probe (§10)
+* `explore/learnfe_bench.py` - reproduces both tables (`panel` / `censored`)
+* `results/learnfe_panel.json` - agreement table, raw
+* `results/learnfe_censored.json` - censored-tail table, raw
 
 ## 10. Auto-`learnfe`: `let` uses the learn path by itself (`AM_AUTOLEARN`, default on)
 
@@ -347,18 +347,18 @@ gets the fast guess-and-verify construction on the hard cases **without knowing 
 compiles a body:
 
 1. **Shape detection.**  Is the body *syntactically* one of the four self-verifying
-   shapes — FE, rev, period, border — up to renaming and reordering the parameters?  The
+   shapes - FE, rev, period, border - up to renaming and reordering the parameters?  The
    rev and border bodies are matched in their *subtraction-free* `let` forms
    (`rev`: `A t,u. (t<l & t+u+1=l) => T[i+t]=T[j+u]`; `border`:
    `(b<=l) & (A t,u. (t<b & u+b=l) => T[i+t]=T[i+u+t])`), because a term like `j+l-1-t`
    is not an admissible index for the direct compiler in the first place.  Detection is
-   deliberately strict: any near-miss — `t<=l`, a shifted index, `E` for `A`, `!=` for
-   `=` — is *not* a shape and is left to the ordinary ladder, unchanged.
+   deliberately strict: any near-miss - `t<=l`, a shifted index, `E` for `A`, `!=` for
+   `=` - is *not* a shape and is left to the ordinary ladder, unchanged.
 
 2. **Cheap probe, then hand off.**  Measured across the whole panel (this file §6,
    `docs/LEARN.md` §4, `bench/RIG-BENCH-32GB.md`): every FE/rev/period/border the direct
    construction can build *at all* finishes on the two **cheap** rungs of the adaptive
-   ladder — forward(`AM_CAP0`=50k) or Brzozowski(4·`AM_CAP0`=200k subsets), peaking under
+   ladder - forward(`AM_CAP0`=50k) or Brzozowski(4·`AM_CAP0`=200k subsets), peaking under
    ~150k subsets in milliseconds to a few seconds.  The cases the direct construction is
    bad at (the "tail" family) blow straight past the cheap rungs into millions of subsets
    and gigabytes over hundreds of seconds.  So the cheap rungs are a clean classifier:
@@ -366,13 +366,13 @@ compiles a body:
    (`via=ladder`, byte-for-byte identical to `AM_AUTOLEARN=0`); if they fail the whole
    construction is handed to `learn_pred` (`via=learnfe`), whose result is *proved*
    language-equal to the predicate by the recurrence check (§2) and is the same minimal
-   DFA the ladder would have produced — but which wins the blow-up cases.
+   DFA the ladder would have produced - but which wins the blow-up cases.
 
 This is **sequential**, not a thread race: no shared-memory-budget contention, and no
 attempt to cancel an in-flight subset construction (the process runs `panic = "abort"`,
 so a cancelled ladder thread reaching its last-resort `expect` would abort the process).
 The probe reuses the ladder's own cheap rungs, so it adds no measurable cost on easy
-inputs (thue-morse 1 ms, single3 4 ms, single5 212 ms — identical with `AM_AUTOLEARN`
+inputs (thue-morse 1 ms, single3 4 ms, single5 212 ms - identical with `AM_AUTOLEARN`
 on and off).
 
 **tail-c, default settings** (`AM_MEM_MB=2048`), which the direct `let FE` cannot finish
@@ -382,13 +382,13 @@ at all under the default budget (it needs 448 s and 2818 MB, §6.2 / `bench/RIG-
     let FE(i,j,l) A t. t < l => T[i+t] = T[j+t]
     OK let FE(i,j,l) states=1382 peak=8767 ms=16058 via=learnfe kind=fe eqs=139 ces=1381 mqs=5992969
 
-16 s, ~230 MB RSS, verified — faster than Walnut `CCLS` (28.5 s on the 32 GB rig).
+16 s, ~230 MB RSS, verified - faster than Walnut `CCLS` (28.5 s on the 32 GB rig).
 tail-c rev (1442) and period (1861) hand off identically.
 
 **Correctness gate.**  `tools/fuzz_autolearn.py` runs the same binary with
 `AM_AUTOLEARN=1` and `=0` over the panel plus PRISM-drawn sequences and requires the
 identical minimal state count *and* the identical accepted-tuple set (`enum`) on every
 case both finish, and requires that no near-miss / non-shaped `let` is ever detected:
-**210 pairs, 0 disagreements, 0 misfires.**  (Non-FE `let`s are unaffected — the detector
+**210 pairs, 0 disagreements, 0 misfires.**  (Non-FE `let`s are unaffected - the detector
 does not fire.)  `AM_AUTOLEARN=0` is the switch the benchmarks use to time the two paths
 separately.
