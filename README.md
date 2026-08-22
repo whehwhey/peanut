@@ -1,5 +1,7 @@
 # Peanut
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22052755.svg)](https://doi.org/10.5281/zenodo.22052755)
+
 A first-order-logic decision procedure for k-automatic sequences, with an adaptive
 determinization ladder, guess-and-verify construction of hard predicates, a hard
 resource guard, and a GUI.
@@ -98,9 +100,9 @@ Andrew Hingston.
 
 ## How to cite
 
-If you use Peanut in research, please cite it (GitHub shows a "Cite this repository" button from `CITATION.cff`). A DOI will be added once the software paper is published.
+If you use Peanut in research, please cite it (GitHub shows a "Cite this repository" button from `CITATION.cff`). Each release is archived on Zenodo with a DOI:
 
-> Hingston, A. *Peanut: a decision procedure for automatic sequences.* 2026. https://github.com/hingstona/peanut
+> Hingston, A. *Peanut: a decision procedure for automatic sequences.* 2026. Zenodo. https://doi.org/10.5281/zenodo.22052755
 
 ## License
 
