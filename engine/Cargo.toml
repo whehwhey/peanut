@@ -1,7 +1,8 @@
 [package]
 name = "peanut"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+rust-version = "1.75"
 
 # The binary was called `automatheus` until 2026-08-17.  A symlink
 # target/release/automatheus -> peanut is kept so older scripts still run.
