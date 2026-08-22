@@ -571,9 +571,11 @@ with `"negative index"`/`"negative argument"`/`"negative argument to pow"`),
 **Comparisons**: `t1 REL t2` for `REL` in `= != ~= < <= > >=` (`~=` is an alias
 for `!=`) between two arithmetic terms.
 
-**Sequence terms**: `T[t]` where `t` is an arithmetic term (`T` = the seqname
-compiled against, always literally `T` in source even though `def` takes an
-arbitrary NAME). Two forms, `=`/`!=` only:
+**Sequence terms**: `NAME[t]` where `t` is an arithmetic term and `NAME` is the
+name the sequence was defined or loaded under. For `def T ...` that is `T`; for a
+`dfao`-loaded sequence it is the DFAO's own name (`RS[...]`, `W[...]`), and using
+`T[...]` there parses `T` as a free variable and fails with "expected relation".
+One sequence name per formula. Two forms, `=`/`!=` only:
 - `T[t] = a` / `T[t] != a` - compare against a numeral output letter `a`.
 - `T[t1] = T[t2]` / `T[t1] != T[t2]` - compare two positions.
 
